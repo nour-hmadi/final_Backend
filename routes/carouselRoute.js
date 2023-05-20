@@ -1,24 +1,14 @@
-import express from "express";
-const router = express.Router();
-import multer from "multer";
+
+import  express  from "express";
 import controller from "../controllers/carouselController.js";
+import upload from '../middlewares/upload.middleware.js';
 
-const storage = multer.diskStorage({
-  destination: "uploads",
-  filename: (req, file, cb) => {
-    cb(null, file.originalname);
-  },
-});
-const uploadMiddlewares = multer({
-  storage,
-});
-import { protect } from '../middlewares/authMiddleware.js'
+const router = express.Router();
 
-
-router.get("/", controller.getAll); //list all
-router.get("/:id", controller.get); // list one
-router.post("/", uploadMiddlewares.single("image_url"), controller.post); //create
-router.put("/:id", uploadMiddlewares.single("image_url"), controller.put); //update
-router.delete("/:id", controller.delete); //delete
+router.route('/').get(controller.getall);
+router.route('/').post(upload.single('image'), controller.createData);
+router.route('/:id').delete(controller.deleteData);
+router.route('/:id').put(upload.single('image'),controller.updateData);
+router.route('/:d').get(controller.getDataById);
 
 export default router;

@@ -1,4 +1,4 @@
-import Model from "../models/contactModel.js";
+import Model from "../models/aboutusModel.js";
 import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
@@ -7,8 +7,8 @@ cloudinary.config({
   api_secret: process.env.API_SECRET,
 });
 
-//create a new data
-const createContactUsDetails = async (req, res) => {
+//create a new ContactUsDetails
+const createData = async (req, res) => {
   const { title, description } = req.body;
   try {
     let image = req.file.path; //get the path of the image
@@ -35,25 +35,24 @@ const createContactUsDetails = async (req, res) => {
 };
 
 //get all data
-const  getContactUsDetails= async (req, res) => {
-  try{
-const allContactUsDetails = await Model.find();
-res.json({
-  message: "all data",
-  status: 200,
-  data: allContactUsDetails,
-});
+const getData = async (req, res) => {
+    try{
+  const allContactUsDetails = await Model.find();
+  res.json({
+    message: "all data",
+    status: 200,
+    data: allContactUsDetails,
+  });
 }
 catch (err) {
-  return res.status(500).json({
-    data: err
-  })
-}
+    return res.status(500).json({
+      data: err
+    })
+  }
 };
 
-
-//delete a data
-const deleteContactUsDetails = async (req, res) => {
+//delete a ContactUsDetails
+const deleteData = async (req, res) => {
   const { id } = req.params;
   try {
     const deletedcard = await Model.findByIdAndRemove(id);
@@ -70,7 +69,7 @@ const deleteContactUsDetails = async (req, res) => {
   }
 };
 // GET /cards/:id - retrieve a specific card by ID
-const getContactUsDetailsById = async (req, res) => {
+const getDataById = async (req, res) => {
   const id = req.params.d;
   console.log(id);
   try {
@@ -92,8 +91,8 @@ const getContactUsDetailsById = async (req, res) => {
   }
 };
 
-//update data
-const updateContactUsDetails = async (req, res) => {
+//update
+const updateData = async (req, res) => {
   const { id } = req.params;
   const { title, description } = req.body;
 
@@ -135,9 +134,9 @@ const updateContactUsDetails = async (req, res) => {
 };
 
 export default {
-  createContactUsDetails,
-  getContactUsDetails,
-  deleteContactUsDetails,
-  updateContactUsDetails,
-  getContactUsDetailsById,
+  createData,
+  getData,
+  deleteData,
+  updateData,
+  getDataById,
 };

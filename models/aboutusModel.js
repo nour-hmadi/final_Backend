@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 const { Schema, model } = mongoose;
 
-const contactUsDetailsSchema = new Schema(
+const aboutUsSchema = new Schema(
   {
     image: {
       public_id: {
@@ -23,10 +23,10 @@ const contactUsDetailsSchema = new Schema(
     },
   },
   {
-    collection: "contactdetails",
+    collection: "aboutus",
     timestamps: true,
   }
 );
 
-const ContactUsDetails = model("contactdetails", contactUsDetailsSchema);
-export default ContactUsDetails;
+const AboutUs = model("aboutus", aboutUsSchema);
+export default AboutUs;

@@ -3,19 +3,22 @@ const { Schema, model } = mongoose;
 
 const gallerySchema = new Schema(
     {
-        title: {
+        image: {
+            public_id: {
+              type: String,
+              required: true,
+            },
+            url: {
+              type: String,
+              required: true,
+            },
+          },
+        title:{
             type: String,
             required: true
         },
-        description:{
-            type: String,
-            required: true
-        },
-        image_url:{
-            type: String,
-            required: true
-        },
-        page:{
+       
+        section:{
             type: String,
             required: true,
             
@@ -23,7 +26,7 @@ const gallerySchema = new Schema(
     },
 
     {
-        collection: 'about',
+        collection: 'gallery',
         timestamps: true,
     }
 

@@ -2,40 +2,51 @@ import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-const teacherCardSchema = new Schema({
-  name: {
+const courseSchema = new Schema({
+  course_name: {
+    type: String,
+    required: true,
+   
+  },
+  course_code: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  description: {
     type: String,
     required: true,
   },
-  profession: {
+  credits: {
+    type: Number,
+    required: true,
+  },
+  sem: {
     type: String,
     required: true,
   },
-  email: {
+  cm: {
     type: String,
     required: true,
   },
-  description_title: {
+  td: {
     type: String,
     required: true,
   },
-  description_parag: {
+  tp: {
     type: String,
     required: true,
   },
-  image_url: {
+  hrs: {
     type: String,
     required: true,
   },
-  platform_link: {
-    type: String,
-  },
-  subject: {
-    type: String,
-    required: true,
-  },
+},
+{
+  collection: "coursesyllabus",
+  timestamps: true,
 });
 
-const TeacherCard = mongoose.model("TeachersStaff", teacherCardSchema);
+const courseModel = mongoose.model("coursesyllabus", courseSchema);
 
-export default TeacherCard;
+export default courseModel;

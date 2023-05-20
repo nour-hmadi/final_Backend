@@ -1,4 +1,4 @@
-import Model from "../models/contactModel.js";
+import Model from "../models/headDepartModel.js";
 import { v2 as cloudinary } from "cloudinary";
 
 cloudinary.config({
@@ -7,24 +7,25 @@ cloudinary.config({
   api_secret: process.env.API_SECRET,
 });
 
-//create a new data
-const createContactUsDetails = async (req, res) => {
-  const { title, description } = req.body;
+//create a new ContactUsDetails
+const createData = async (req, res) => {
+  const { name, description, email } = req.body;
   try {
     let image = req.file.path; //get the path of the image
     const uploadedImage = await cloudinary.uploader.upload(image); // upload the image to cloudinary
-    const newContactUsDetails = new Model({
+    const newData = new Model({
       image: {
         public_id: uploadedImage.public_id,
         url: uploadedImage.secure_url,
       },
-      title,
+      name,
       description,
+      email,
     });
-    const savedContactUsDetails = await newContactUsDetails.save();
+    const savedData = await newData.save();
     res.status(201).json({
       message: "new data successfully created",
-      data: savedContactUsDetails,
+      data: savedData,
     });
   } catch (error) {
     console.log(error);
@@ -35,32 +36,32 @@ const createContactUsDetails = async (req, res) => {
 };
 
 //get all data
-const  getContactUsDetails= async (req, res) => {
-  try{
-const allContactUsDetails = await Model.find();
-res.json({
-  message: "all data",
-  status: 200,
-  data: allContactUsDetails,
-});
+const getall = async (req, res) => {
+    try{
+  const allData = await Model.find();
+  res.json({
+    message: "all data",
+    status: 200,
+    data: allData,
+  });
 }
 catch (err) {
-  return res.status(500).json({
-    data: err
-  })
-}
+    return res.status(500).json({
+      data: err
+    })
+  }
 };
 
-
-//delete a data
-const deleteContactUsDetails = async (req, res) => {
+//delete a ContactUsDetails
+const deleteData = async (req, res) => {
   const { id } = req.params;
   try {
-    const deletedcard = await Model.findByIdAndRemove(id);
+    const deletedData = await Model.findByIdAndRemove(id);
 
     res
       .status(200)
-      .json({ message: ` data with id = ${id} deleted successfully` });
+      .json({ message: ` data with id = ${id} deleted successfully`,
+    data: deletedData, });
 
   } catch (error) {
     console.log(error);
@@ -70,19 +71,19 @@ const deleteContactUsDetails = async (req, res) => {
   }
 };
 // GET /cards/:id - retrieve a specific card by ID
-const getContactUsDetailsById = async (req, res) => {
+const getDataById = async (req, res) => {
   const id = req.params.d;
   console.log(id);
   try {
-    const contactDetailsId = await Model.findById(id);
-    if (!contactDetailsId)
+    const dataId = await Model.findById(id);
+    if (!dataId)
       return res.status(404).json({
         data: `data with this ${id} id no longer exist in the database`,
       });
 
     return res.status(200).json({
       message: `data of id ${id}`,
-      data: contactDetailsId,
+      data: dataId,
     });
   } catch (error) {
     console.log(error);
@@ -92,10 +93,10 @@ const getContactUsDetailsById = async (req, res) => {
   }
 };
 
-//update data
-const updateContactUsDetails = async (req, res) => {
+//update
+const updateData = async (req, res) => {
   const { id } = req.params;
-  const { title, description } = req.body;
+  const { name, description, email } = req.body;
 
   try {
     let image;
@@ -106,27 +107,28 @@ const updateContactUsDetails = async (req, res) => {
       uploadedImage = await cloudinary.uploader.upload(image);
     }
 
-    const editContactUsDetails = {
+    const editData = {
       image: uploadedImage
         ? {
             public_id: uploadedImage.public_id,
             url: uploadedImage.secure_url,
           }
         : null,
-      title,
-      description,
+     name,
+     description,
+     email,
     };
 
-    const updatedContactUsDetails = await Model.findByIdAndUpdate(
+    const updatedData = await Model.findByIdAndUpdate(
       id,
-      editContactUsDetails,
+      editData,
       { new: true } // To return the updated document
     );
 
     res.json({
       message: "Data updated successfully",
       status: 200,
-      data: updatedContactUsDetails,
+      data: updatedData,
     });
   } catch (error) {
     console.log(error);
@@ -135,9 +137,9 @@ const updateContactUsDetails = async (req, res) => {
 };
 
 export default {
-  createContactUsDetails,
-  getContactUsDetails,
-  deleteContactUsDetails,
-  updateContactUsDetails,
-  getContactUsDetailsById,
+  createData,
+  getall,
+  deleteData,
+  updateData,
+  getDataById,
 };

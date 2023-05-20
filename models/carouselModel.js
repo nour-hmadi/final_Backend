@@ -3,9 +3,18 @@ const { Schema, model } = mongoose;
 
 const carouselSchema = new Schema(
   {
-    image_url: {
+    image: {
+      public_id: {
+        type: String,
+        required: true,
+      },
+      url: {
+        type: String,
+        required: true,
+      },
+    },
+    title: {
       type: String,
-      required: true,
     },
   },
   {

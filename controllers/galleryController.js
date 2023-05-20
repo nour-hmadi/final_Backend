@@ -1,102 +1,143 @@
 import Model from "../models/galleryModel.js";
-import fs from "fs";
+import { v2 as cloudinary } from "cloudinary";
 
-class Controller {
-  //get All
-  async getAll(req, res, next) {
-    try {
-      const response =(await Model.find()).map((item) => {
-        let image;
-        if (item.image_url) {
-          const file = fs.readFileSync(item.image_url);
-          image = Buffer.from(file).toString("base64");
-        }
-        return {
-          title: item.title,
-          description: item.description,
-          page: item.section,
-          id: item.id,
-          image,
-        };
-      });
-      return res.status(200).json(response);
-    } catch (err) {
-      return res.status(500).json({
-        data: err,
-      });
-    }
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
+
+//create a new ContactUsDetails
+const createData = async (req, res) => {
+  const { title, section } = req.body;
+  try {
+    let image = req.file.path; //get the path of the image
+    const uploadedImage = await cloudinary.uploader.upload(image); // upload the image to cloudinary
+    const newData = new Model({
+      image: {
+        public_id: uploadedImage.public_id,
+        url: uploadedImage.secure_url,
+      },
+      title,
+      section,
+    });
+    const savedData = await newData.save();
+    res.status(201).json({
+      message: "new data successfully created",
+      data: savedData,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "failed to add data",
+    });
   }
+};
 
-  //get story by id
-  async get(req, res, next) {
-    let { id } = req.params;
-
-    try {
-      const getAbout = await Model.findById(id);
-
-      if (!getAbout)
-        return res.status(404).json({
-          data: `Info with this ${id} does not exist`,
-        });
-      return res.status(200).json({
-        data: getAbout,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        data: getAbout,
-      });
-    }
-  }
-
-  // creating new story
-  async post(req, res) {
-    const body = req.body;
-    try {
-      const doc = new Model(body);
-      if (req.file) {
-        doc.image_url = req.file.path;
-      }
-      const new_date = await doc.save();
-
-      return res.status(200).json({ new_date });
-    } catch (err) {
-      return res.status(500).json({
-        data: err.message,
-      });
-    }
-  }
-  //update an author by _id
-  async put(req, res, next) {
-    try {
-      const about = await Model.findById(req.params.id);
-      if (!about) {
-        return res.status(404).json({ message: "About not found" });
-      }
-
-      const { title, description, section } = req.body;
-      if(title) about.title = title;
-      if(description) about.description = description;
-      if(page) about.page = page;
-      if(req.file) about.image_url = req.file.path;
-
-      const updatedAbout = await about.save();
-      res.json(updatedAbout);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
-  }
-  //delete story by id
-
-  async delete(req, res, next) {
-    try {
-      const about = await Model.findByIdAndDelete(req.params.id);
-      res.json({ message: `About story ${about.title} deleted successfully` });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
+//get all data
+const getall = async (req, res) => {
+    try{
+  const allData = await Model.find();
+  res.json({
+    message: "all data",
+    status: 200,
+    data: allData,
+  });
 }
+catch (err) {
+    return res.status(500).json({
+      data: err
+    })
+  }
+};
 
-const controller = new Controller();
+//delete a ContactUsDetails
+const deleteData = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deletedData = await Model.findByIdAndRemove(id);
 
-export default controller;
+    res
+      .status(200)
+      .json({ message: ` data with id = ${id} deleted successfully`,
+    data: deletedData, });
+
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: "ERROR",
+    });
+  }
+};
+// GET /cards/:id - retrieve a specific card by ID
+const getDataById = async (req, res) => {
+  const id = req.params.d;
+  console.log(id);
+  try {
+    const dataId = await Model.findById(id);
+    if (!dataId)
+      return res.status(404).json({
+        data: `data with this ${id} id no longer exist in the database`,
+      });
+
+    return res.status(200).json({
+      message: `data of id ${id}`,
+      data: dataId,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: `Failure `,
+    });
+  }
+};
+
+//update
+const updateData = async (req, res) => {
+  const { id } = req.params;
+  const { title, section } = req.body;
+
+  try {
+    let image;
+    let uploadedImage;
+
+    if (req.file) {
+      image = req.file.path;
+      uploadedImage = await cloudinary.uploader.upload(image);
+    }
+
+    const editData = {
+      image: uploadedImage
+        ? {
+            public_id: uploadedImage.public_id,
+            url: uploadedImage.secure_url,
+          }
+        : null,
+      title,
+      section,
+    };
+
+    const updatedData = await Model.findByIdAndUpdate(
+      id,
+      editData,
+      { new: true } // To return the updated document
+    );
+
+    res.json({
+      message: "Data updated successfully",
+      status: 200,
+      data: updatedData,
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export default {
+  createData,
+  getall,
+  deleteData,
+  updateData,
+  getDataById,
+};

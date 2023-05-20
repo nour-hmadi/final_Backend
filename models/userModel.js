@@ -8,65 +8,61 @@ const userSchema = new Schema(
       type: String,
       required: [true, "Please add a name"],
     },
-    file_number: {
-      type: Number,
-      required: [true, "please add your file number"],
-      unique: true,
-    },
     email: {
       type: String,
-      required: [true, "Please add an email"],
+      required: [true, "Please add your email"],
       unique: true,
     },
     password: {
       type: String,
       required: [true, "Please add a password"],
     },
-    description: {
-      type: String,
-    },
-    title: {
-      type: String,
-    },
     phone_number: {
       type: Number,
-      required: [true, "please add your file number"],
+      required: [true, "please add your phone number"],
     },
-
-    image: {
-      public_id: {
-        type: String,
-        required: true,
-      },
-      url: {
-        type: String,
-        required: true,
-      },
+    file_number: {
+      type: Number,
+      required: [true, "Please add your file number"],
+      unique: true,
+    },
+    isAdmin: {
+      type: Boolean,
+      default: "false",
     },
     status: {
       type: Boolean,
       default: 1,
     },
 
-    role: {
-      type: Boolean,
-      default: 0,
+    description: {
+      type: String,
+    },
+    title: {
+      type: String,
+    },
+
+    image: {
+      public_id: {
+        type: String,
+      },
+      url: {
+        type: String,
+      },
     },
 
     teacher_courses: [
       {
         course_name: {
           type: Schema.Types.ObjectId,
-          ref:"courses",
+          ref: "courses",
         },
         pdf: {
           public_id: {
             type: String,
-           
           },
           url: {
             type: String,
-          
           },
         },
       },
