@@ -1,8 +1,9 @@
+
 import mongoose from "mongoose";
 
 const { Schema } = mongoose;
 
-const courseSchema = new Schema({
+const courseSyllabusSchema = new Schema({
   course_name: {
     type: String,
     required: true,
@@ -48,6 +49,6 @@ const courseSchema = new Schema({
   timestamps: true,
 });
 
-const courseModel = mongoose.model("coursesyllabus", courseSchema);
+const courseModel = mongoose.model("coursesyllabus", courseSyllabusSchema);
 
 export default courseModel;

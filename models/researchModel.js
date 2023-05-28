@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
-const headDepartSchema = mongoose.Schema(
-  
+const researchSchema = mongoose.Schema(
   {
-
     image: {
       public_id: {
         type: String,
@@ -13,25 +11,21 @@ const headDepartSchema = mongoose.Schema(
         required: true,
       },
     },
-    name: {
-      type: String,
-      default: "Do you know That...",
-    },
-    email: {
+    title: {
       type: String,
       required: true,
     },
+
     description: {
       type: String,
       required: true,
     },
-    
   },
   {
-    collection: "headDepartment",
+    collection: "Research",
     timestamps: true,
   }
 );
 
-const HeadDepart = mongoose.model("headDepartment", headDepartSchema);
-export default HeadDepart;
+const ResearchModel = mongoose.model("Research", researchSchema);
+export default ResearchModel;

@@ -1,9 +1,8 @@
 import mongoose from "mongoose";
-
 const { Schema } = mongoose;
-
 const userSchema = new Schema(
   {
+    
     name: {
       type: String,
       required: [true, "Please add a name"],
@@ -51,22 +50,6 @@ const userSchema = new Schema(
       },
     },
 
-    teacher_courses: [
-      {
-        course_name: {
-          type: Schema.Types.ObjectId,
-          ref: "courses",
-        },
-        pdf: {
-          public_id: {
-            type: String,
-          },
-          url: {
-            type: String,
-          },
-        },
-      },
-    ],
   },
   {
     timestamps: true,

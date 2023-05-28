@@ -1,10 +1,10 @@
-import Model from "../models/doYouKnowModel.js";
+import AnnModel from "../models/AnnouncementModel.js";
 
 class Controller {
   //get All
   async getAll(req, res, next) {
     try {
-      const allData = await Model.find({});
+      const allData = await AnnModel.find({});
       res.json({
         message: "all data",
         status: 200,
@@ -22,7 +22,7 @@ class Controller {
     let { id } = req.params;
 
     try {
-      const data = await Model.findById(id);
+      const data = await AnnModel.findById(id);
 
       if (!data)
         return res.status(404).json({
@@ -40,12 +40,12 @@ class Controller {
 
   // Add new course
   async post(req, res) {
-    const { question, description, result } = req.body;
+    const { title, description, type } = req.body;
     try {
-      const newdata = await Model.create({
-        question: question || "do you know that ...",
+      const newdata = await AnnModel.create({
+        type,
         description,
-        result,
+        title,
       });
       res.status(203).json({
         message: "data created successfully",
@@ -60,17 +60,17 @@ class Controller {
   //update a course syllabus by _id
   async put(req, res, next) {
     try {
-      const data = await Model.findById(req.params.id);
+      const data = await AnnModel.findById(req.params.id);
       console.log(req.params.id);
       if (!data) {
         return res.status(404).json({ message: "Data not found" });
       }
 
-      const { question, description, result } = req.body;
+      const { title, description, type } = req.body;
 
       if (description) data.description = description;
-      if (question) data.title = question;
-      if (result) data.result = result;
+      if (title) data.title = title;
+      if (type) data.type = type;
 
       const updatedData = await data.save();
       res.json(updatedData);
@@ -83,13 +83,13 @@ class Controller {
   async delete(req, res, next) {
     try {
       let { id } = req.params;
-      const data = await Model.findById(id);
+      const data = await AnnModel.findById(id);
       if (!data) {
         return res.status(404).json({
           message: "not found",
         });
       }
-      const result = await Model.findByIdAndRemove(id);
+      const result = await AnnModel.findByIdAndRemove(id);
 
       return res.status(200).json({
         message: "deleted successfully",
