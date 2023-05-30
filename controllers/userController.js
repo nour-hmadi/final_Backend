@@ -2,10 +2,19 @@ import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import asyncHandler from "express-async-handler";
 import user from "../models/userModel.js";
+import { v2 as cloudinary } from "cloudinary";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET,
+});
+
 
 //REGISTER
 const registerUser = asyncHandler(async (req, res) => {
-  const {
+
+    const {
     name,
     email,
     password,
@@ -15,36 +24,16 @@ const registerUser = asyncHandler(async (req, res) => {
     status,
     description,
     title,
-    image,
-    teacher_courses,
+    type,
   } = req.body;
-
-  if (!name) {
-    res.status(400);
-    throw new Error("Please add your name");
-  }
-
-  if (!email) {
-    res.status(400);
-    throw new Error("Please add your email");
-  }
-
-  if (!password) {
-    res.status(400);
-    throw new Error("Please add your password");
-  }
-
-  if (!file_number) {
-    res.status(400);
-    throw new Error("Please add your file number");
-  }
-
-  if (!phone_number) {
-    res.status(400);
-    throw new Error("Please add your phone number");
-  }
-
-  const userExists = await user.findOne({ email }|| {file_number} || {phone_number });
+  
+  let image = req.file.path
+ console.log(image)
+  const uploadedImage = await cloudinary.uploader.upload(image); // upload the image to cloudinary
+  
+  const userExists = await user.findOne(
+    { email } || { file_number } || { phone_number }
+  );
 
   if (userExists) {
     res.status(400);
@@ -52,7 +41,6 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt);
 
   const newUser = await user.create({
     name,
@@ -61,12 +49,17 @@ const registerUser = asyncHandler(async (req, res) => {
     phone_number,
     file_number,
     status,
+    type,
     description,
-    image,
     title,
-    teacher_courses,
-    password: hashedPassword,
+    password: password,
+    image: {
+      public_id: uploadedImage.public_id,
+      url: uploadedImage.secure_url
+    },
   });
+ 
+
   if (newUser) {
     res.status(201).json({
       _id: newUser.id,
@@ -77,12 +70,40 @@ const registerUser = asyncHandler(async (req, res) => {
       file_number: newUser.file_number,
       status: newUser.status,
       description: newUser.description,
-      image: newUser.image,
+      image: newUser.image && newUser.image || null,
       title: newUser.title,
-      teacher_courses :newUser.teacher_courses,
+      type: newUser.type,
       token: generateToken(user._id),
     });
   } else {
+    if (!name) {
+      res.status(400);
+      throw new Error("Please add your name");
+    }
+    if (!type) {
+      res.status(400);
+      throw new Error("Are you a Teacher or a Student!!");
+    }
+  
+    if (!email) {
+      res.status(400);
+      throw new Error("Please add your email");
+    }
+  
+    if (!password) {
+      res.status(400);
+      throw new Error("Please add your password");
+    }
+  
+    if (!file_number) {
+      res.status(400);
+      throw new Error("Please add your file number");
+    }
+  
+    if (!phone_number) {
+      res.status(400);
+      throw new Error("Please add your phone number");
+    }
     res.status(400);
     throw new Error("Invalid user data");
   }
@@ -90,13 +111,20 @@ const registerUser = asyncHandler(async (req, res) => {
 
 //GET ALL USERS
 const getUsers = async (req, res) => {
-  const all_users = await user.find();
+  try{
+    const all_users = await user.find();
 
   res.json({
     message: "All users",
     status: 200,
     data: all_users,
   });
+}
+catch (err) {
+  return res.status(500).json({
+    data: err
+  })
+}
 };
 
 //LOGIN
@@ -123,7 +151,7 @@ const loginUser = asyncHandler(async (req, res) => {
 //GET ME
 const getMe = asyncHandler(async (req, res) => {
   const currentUser = await user.findById(req.user.id);
-console.log(req.user)
+  console.log(req.user);
   res.json({
     message: "User data retrieved successfully",
     status: 200,

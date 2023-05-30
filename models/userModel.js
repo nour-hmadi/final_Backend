@@ -7,6 +7,10 @@ const userSchema = new Schema(
       type: String,
       required: [true, "Please add a name"],
     },
+    type:{
+      type: String,
+      required: [true, "please specify if you're a teacher or a student"],
+    },
     email: {
       type: String,
       required: [true, "Please add your email"],
@@ -28,6 +32,7 @@ const userSchema = new Schema(
     isAdmin: {
       type: Boolean,
       default: "false",
+      
     },
     status: {
       type: Boolean,

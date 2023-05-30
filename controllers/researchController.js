@@ -71,7 +71,7 @@ const deleteData = async (req, res) => {
 };
 // GET /cards/:id - retrieve a specific card by ID
 const getDataById = async (req, res) => {
-  const id = req.params.d;
+  const id = req.params.id;
   console.log(id);
   try {
     const dataId = await ResearchModel.findById(id);
