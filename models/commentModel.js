@@ -1,26 +1,22 @@
 import mongoose from "mongoose";
 
-const postSchema = new mongoose.Schema(
+const recipeSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
       required: true,
       ref: "User",
     },
-    title: {
-      type: String,
-      required: true,
-    },
+  
     description: {
       type: String,
       required: true,
     },
-
-    image: {
-      type: String,
-      // required: true,
+    
+    post: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Post",
     },
-
     likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],
     likesCount: {
       type: Number,
@@ -36,7 +32,9 @@ const postSchema = new mongoose.Schema(
   }
 );
 
-const Post = mongoose.model("Post", postSchema);
+const Recipe = mongoose.model("Recipe", recipeSchema);
+Recipe.find()
+  .populate({ path: "categoryID", select: "title" })
+ 
 
-
-export default Post;
+export default Recipe;

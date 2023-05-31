@@ -41,6 +41,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const salt = await bcrypt.genSalt(10);
+  const hashedPassword = await bcrypt.hash(password, salt)
 
   const newUser = await user.create({
     name,
@@ -48,11 +49,11 @@ const registerUser = asyncHandler(async (req, res) => {
     isAdmin: isAdmin || false,
     phone_number,
     file_number,
-    status,
+    status: status || true,
     type,
     description,
     title,
-    password: password,
+    password: hashedPassword,
     image: {
       public_id: uploadedImage.public_id,
       url: uploadedImage.secure_url

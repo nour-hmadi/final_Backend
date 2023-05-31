@@ -1,10 +1,10 @@
 import asyncHandler from "express-async-handler";
-import Post from "../models/postModel.js";
+import Recipe from "../models/postModel.js";
 import User from "../models/userModel.js";
 import cloudinary from "cloudinary";
 //============
 
-const postPost = asyncHandler(async (req, res) => {
+const postRecipe = asyncHandler(async (req, res) => {
   const { id } = req.params;
   console.log(id);
   const user = await User.findById(id);
@@ -13,9 +13,9 @@ const postPost = asyncHandler(async (req, res) => {
   }
   console.log(user);
 
-  const { title, description } = req.body;
+  const { description, post } = req.body;
   console.log(req.body);
-  if (!title || !description) {
+  if ( !description  || !post) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
@@ -32,17 +32,21 @@ const postPost = asyncHandler(async (req, res) => {
 
     const result = await cloudinary.v2.uploader.upload(req.file.path);
 
+    const parsedIngredients = ingredients.split(";").map((i) => i.trim());
 
-    const post = new Post({
+    const recipe = new Recipe({
       user: user.id,
       title,
       description,
+      ingredients: parsedIngredients,
+      steps,
       image: result.secure_url,
+      category: category.split(",").map((c) => c.trim()),
     });
 
-    await post.save();
+    await recipe.save();
     return res.status(200).json({
-      post,
+      recipe,
     });
   } catch (error) {
     console.error(error);
@@ -52,22 +56,22 @@ const postPost = asyncHandler(async (req, res) => {
 
 //============
 
-const getAllPosts = asyncHandler(async (req, res) => {
-  const post = await Post.find();
-  res.json(post);
+const getAllRecipes = asyncHandler(async (req, res) => {
+  const recipe = await Recipe.find();
+  res.json(recipe);
 });
 
 //============
 
-const getPostById = asyncHandler(async (req, res) => {
+const getRecipeById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const post = await Post.findById(id);
+  const recipe = await Recipe.findById(id);
   console.log(id)
-  res.json(post);
+  res.json(recipe);
 });
 //============
 
-const updatePost = asyncHandler(async (req, res) => {
+const updateRecipeFour = asyncHandler(async (req, res) => {
   const { user, id } = req.body;
   const useri = await User.findById(user);
 
@@ -75,7 +79,7 @@ const updatePost = asyncHandler(async (req, res) => {
     return res.status(404).json({ message: "User not found" });
   }
 
-  const { title, description} = req.body;
+  const { title, description, ingredients, steps } = req.body;
 
   // Check if there is a new image
   let imageUrl;
@@ -95,83 +99,102 @@ const updatePost = asyncHandler(async (req, res) => {
     }
   }
 
+  // Split the ingredients string into an array
+  const parsedIngredients = ingredients.split(";").map((i) => i.trim());
 
-  // Update the post
+  // Update the recipe
   const updates = {
     title,
     description,
+    ingredients: parsedIngredients,
+    steps,
     ...(imageUrl && { image: imageUrl }),
   };
 
   const options = { new: true };
-  const post = await Post.findByIdAndUpdate(id, updates, options);
+  const recipe = await Recipe.findByIdAndUpdate(id, updates, options);
 
-  if (!post) {
-    return res.status(404).json({ message: "post not found" });
+  if (!recipe) {
+    return res.status(404).json({ message: "Recipe not found" });
   }
 
-  return res.json({ post });
+  return res.json({ recipe });
 });
 
 //=============
 
-const deletePost = asyncHandler(async (req, res) => {
+const deleteRecipe = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const post = await Post.findByIdAndDelete(id);
+  const recipe = await Recipe.findByIdAndDelete(id);
   console.log(id);
-  if (post) {
+  if (recipe) {
     return res.status(200).json({
       message: `${id} had been deleted successfully`,
     });
   } else return res.status(404).json({ message: `${id} not found` });
 });
 
+// // Like recipe
+// const likeRecipe = asyncHandler(async (req, res) => {
+//   const { user, id } = req.body;
 
-// ============
-const likePost = asyncHandler(async (req, res) => {
+//   const recipe = await Recipe.findById(id);
+//   if (!recipe) {
+//     return res.status(404).json({ message: "Recipe not found" });
+//   }
+
+//   // const likeIndex = recipe.likedPosts;
+//   recipe.likedPosts=!(recipe.likedPosts)
+//   await recipe.save();
+
+//     console.log(recipe.likedPosts);
+
+// });
+
+const likeRecipe = asyncHandler(async (req, res) => {
   const { user, id } = req.body;
 
-  const post = await Post.findById(id);
-  console.log(id, post);
-  if (!post) {
-    return res.status(404).json({ message: "Like Post not found" });
+  const recipe = await Recipe.findById(id);
+  console.log(id, recipe);
+  if (!recipe) {
+    return res.status(404).json({ message: "Like Recipe not found" });
   }
 
-  // Check if the user has already liked this post
-  const index = post.likedBy.indexOf(user);
+  // Check if the user has already liked this recipe
+  const index = recipe.likedBy.indexOf(user);
   const liked = index !== -1;
 
   // Toggle the liked status
   if (liked) {
-    post.likedBy.splice(index, 1);
+    recipe.likedBy.splice(index, 1);
   } else {
-    post.likedBy.push(user);
+    recipe.likedBy.push(user);
   }
 
-  // Update the likes count and save the post
-  post.likesCount = post.likedBy.length;
-  await post.save();
+  // Update the likes count and save the recipe
+  recipe.likesCount = recipe.likedBy.length;
+  await recipe.save();
 
-  // Return the post with the new 'liked' property
-  const responsePost = post.toObject();
-  responsePost.liked = !liked;
-  return res.json({ post: responsePost });
+  // Return the recipe with the new 'liked' property
+  const responseRecipe = recipe.toObject();
+  responseRecipe.liked = !liked;
+  return res.json({ recipe: responseRecipe });
 });
 
-// Get likes data for all posts
+// Get likes data for all recipes
 const getLikesData = asyncHandler(async (req, res) => {
-  // Retrieve likes data for all posts
+  // Retrieve likes data for all recipes
   const likesData = await Like.aggregate([
     {
       $group: {
-        _id: "$post",
+        _id: "$recipe",
         likes: { $push: "$user" },
         count: { $sum: 1 },
       },
     },
   ]);
 
-  // Create a map of post IDs to likes data
+  // Create a map of recipe IDs to likes data
   const likesMap = new Map();
   likesData.forEach((item) => likesMap.set(item._id.toString(), item));
 
@@ -179,11 +202,11 @@ const getLikesData = asyncHandler(async (req, res) => {
 });
 
 export default {
-  getPostById,
-  likePost,
+  getRecipeById,
+  likeRecipe,
   getLikesData,
-  postPost,
-  getAllPosts,
-  updatePost,
-  deletePost,
+  postRecipe,
+  getAllRecipes,
+  updateRecipeFour,
+  deleteRecipe,
 };

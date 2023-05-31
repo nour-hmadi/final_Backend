@@ -40,12 +40,14 @@ class Controller {
 
   // Add new course
   async post(req, res) {
-    const { title, description, type } = req.body;
+    const { title, description, type, day, month } = req.body;
     try {
       const newdata = await AnnModel.create({
         type,
         description,
         title,
+        day,
+        month,
       });
       res.status(203).json({
         message: "data created successfully",
@@ -66,11 +68,13 @@ class Controller {
         return res.status(404).json({ message: "Data not found" });
       }
 
-      const { title, description, type } = req.body;
+      const { title, description, type, day, month } = req.body;
 
       if (description) data.description = description;
       if (title) data.title = title;
       if (type) data.type = type;
+      if (month) data.month = month;
+      if (day) data.day = day;
 
       const updatedData = await data.save();
       res.json(updatedData);
