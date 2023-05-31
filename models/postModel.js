@@ -7,6 +7,9 @@ const postSchema = new mongoose.Schema(
       required: true,
       ref: "User",
     },
+    name:{
+      type:String
+    },
     title: {
       type: String,
       required: true,
@@ -19,6 +22,10 @@ const postSchema = new mongoose.Schema(
     image: {
       type: String,
       // required: true,
+    },
+    status: {
+      type: Boolean,
+      default: false,
     },
 
     likedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: "User" }],

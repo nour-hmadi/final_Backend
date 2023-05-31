@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.route("/:id").post( upload.single("image"), Post.postPost);
 
-router.route("/").patch(protect,upload.single("image"), Post.updatePost);
+router.route("/").put(Post.updatePost);
 
 router.route("/:id").delete(Post.deletePost);
 

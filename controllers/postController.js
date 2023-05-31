@@ -8,6 +8,9 @@ const postPost = asyncHandler(async (req, res) => {
   const { id } = req.params;
   console.log(id);
   const user = await User.findById(id);
+  console.log("nour")
+  console.log(user)
+  console.log(user.name)
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
@@ -32,9 +35,9 @@ const postPost = asyncHandler(async (req, res) => {
 
     const result = await cloudinary.v2.uploader.upload(req.file.path);
 
-
     const post = new Post({
       user: user.id,
+      name: user.name,
       title,
       description,
       image: result.secure_url,
@@ -62,7 +65,7 @@ const getAllPosts = asyncHandler(async (req, res) => {
 const getPostById = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const post = await Post.findById(id);
-  console.log(id)
+  console.log(id);
   res.json(post);
 });
 //============
@@ -70,46 +73,19 @@ const getPostById = asyncHandler(async (req, res) => {
 const updatePost = asyncHandler(async (req, res) => {
   const { user, id } = req.body;
   const useri = await User.findById(user);
-
   if (!useri) {
     return res.status(404).json({ message: "User not found" });
   }
-
-  const { title, description} = req.body;
-
-  // Check if there is a new image
-  let imageUrl;
-  if (req.file) {
-    try {
-      cloudinary.v2.config({
-        cloud_name: process.env.CLOUD_NAME,
-        api_key: process.env.API_KEY,
-        api_secret: process.env.API_SECRET,
-      });
-
-      const result = await cloudinary.v2.uploader.upload(req.file.path);
-      imageUrl = result.secure_url;
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Internal server error" });
-    }
-  }
-
-
+  const { status } = req.body;
   // Update the post
   const updates = {
-    title,
-    description,
-    ...(imageUrl && { image: imageUrl }),
+    status,
   };
-
   const options = { new: true };
   const post = await Post.findByIdAndUpdate(id, updates, options);
-
   if (!post) {
     return res.status(404).json({ message: "post not found" });
   }
-
   return res.json({ post });
 });
 
@@ -125,7 +101,6 @@ const deletePost = asyncHandler(async (req, res) => {
     });
   } else return res.status(404).json({ message: `${id} not found` });
 });
-
 
 // ============
 const likePost = asyncHandler(async (req, res) => {
