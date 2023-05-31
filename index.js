@@ -23,11 +23,7 @@ dotenv.config();
 const port = process.env.PORT || 8000;
 connectDB();
 const app = express();
-app.use(
-  cors({
-    origin: "http://localhost:3000",
-  })
-);
+app.use(cors());
 
 //you use these inorder to use the body data
 app.use(express.json());
