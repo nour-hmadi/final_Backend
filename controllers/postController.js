@@ -69,26 +69,26 @@ const getPostById = asyncHandler(async (req, res) => {
   res.json(post);
 });
 //============
+const updatePost = asyncHandler( async (req, res, next) =>  {
+  try {
+    const data = await Post.findById(req.params.id);
+    console.log(req.params.id);
+    if (!data) {
+      return res.status(404).json({ message: "Data not found" });
+    }
 
-const updatePost = asyncHandler(async (req, res) => {
-  const { user, id } = req.body;
-  const useri = await User.findById(user);
-  if (!useri) {
-    return res.status(404).json({ message: "User not found" });
+    const { status } = req.body;
+
+    if (status !== undefined) {
+      data.status = status;
+    }
+
+    const updatedData = await data.save();
+    res.json(updatedData);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
-  const { status } = req.body;
-  // Update the post
-  const updates = {
-    status,
-  };
-  const options = { new: true };
-  const post = await Post.findByIdAndUpdate(id, updates, options);
-  if (!post) {
-    return res.status(404).json({ message: "post not found" });
-  }
-  return res.json({ post });
 });
-
 //=============
 
 const deletePost = asyncHandler(async (req, res) => {

@@ -135,13 +135,13 @@ const loginUser = asyncHandler(async (req, res) => {
   const loginUser = await user.findOne({ email });
 
   if (loginUser && (await bcrypt.compare(password, loginUser.password))) {
+    const token = jwt.sign({user_id : loginUser._id , email: loginUser.email, name: loginUser.name}, process.env.JWT_SECRET)
     res.json({
       _id: loginUser.id,
       name: loginUser.name,
       email: loginUser.email,
       isAdmin: loginUser.isAdmin,
-
-      token: generateToken(user._id),
+      token: token,
     });
   } else {
     res.status(400);
@@ -152,7 +152,7 @@ const loginUser = asyncHandler(async (req, res) => {
 //GET ME
 const getMe = asyncHandler(async (req, res) => {
   const currentUser = await user.findById(req.user.id);
-  console.log(req.user);
+  console.log(req.user, 'lol');
   res.json({
     message: "User data retrieved successfully",
     status: 200,
@@ -199,40 +199,59 @@ const deleteUser = asyncHandler(async (req, res) => {
   }
 });
 
+
 //EDIT USER
 const editUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, email, password, isAdmin } = req.body;
+  const { name, email, password, phone_number, status, description, title } = req.body;
 
-  const userToUpdate = await user.findById(id);
+  try {
+    let image;
+    let uploadedImage;
 
-  if (!userToUpdate) {
-    res.status(404);
-    throw new Error("User not found");
+    if (req.file) {
+      image = req.file.path;
+      uploadedImage = await cloudinary.uploader.upload(image);
+    }
+
+    const userToUpdate = await user.findById(id);
+
+    if (!userToUpdate) {
+      res.status(404);
+      throw new Error("User not found");
+    }
+
+    userToUpdate.image = uploadedImage
+      ? {
+          public_id: uploadedImage.public_id,
+          url: uploadedImage.secure_url,
+        }
+      : userToUpdate.image;
+    userToUpdate.name = name || userToUpdate.name;
+    userToUpdate.email = email || userToUpdate.email;
+    userToUpdate.phone_number = phone_number || userToUpdate.phone_number;
+    userToUpdate.status = status !== undefined ? status : userToUpdate.status;
+    userToUpdate.description = description || userToUpdate.description;
+    userToUpdate.title = title || userToUpdate.title;
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      userToUpdate.password = await bcrypt.hash(password, salt);
+    }
+
+    const updatedUser = await userToUpdate.save();
+
+    res.json({
+      message: "User updated successfully",
+      status: 200,
+      data: updatedUser,
+    });
+  } catch (error) {
+    res.status(400).json({ message: error.message, status: 400 });
   }
-
-  userToUpdate.name = name || userToUpdate.name;
-  userToUpdate.email = email || userToUpdate.email;
-  // userToUpdate.role = role || userToUpdate.role;
-
-  if (password) {
-    const salt = await bcrypt.genSalt(10);
-    userToUpdate.password = await bcrypt.hash(password, salt);
-  }
-
-  const updatedUser = await userToUpdate.save();
-
-  res.json({
-    message: "User updated successfully",
-    status: 200,
-    data: {
-      _id: updatedUser.id,
-      name: updatedUser.name,
-      email: updatedUser.email,
-      isAdmin: false,
-    },
-  });
 });
+
+
 
 export default {
   registerUser,

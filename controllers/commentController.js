@@ -1,212 +1,118 @@
 import asyncHandler from "express-async-handler";
-import Recipe from "../models/postModel.js";
+import Comment from "../models/commentModel.js";
 import User from "../models/userModel.js";
-import cloudinary from "cloudinary";
+import Post from "../models/postModel.js";
+
 //============
 
-const postRecipe = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  console.log(id);
-  const user = await User.findById(id);
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-  console.log(user);
-
-  const { description, post } = req.body;
-  console.log(req.body);
-  if ( !description  || !post) {
-    return res.status(400).json({ message: "Missing required fields" });
-  }
-
-  if (!req.file || req.file.length === 0) {
-    return res.status(400).json({ message: "Image file is missing" });
-  }
+const postComment = asyncHandler(async (req, res) => {
+ 
 
   try {
-    cloudinary.v2.config({
-      cloud_name: process.env.CLOUD_NAME,
-      api_key: process.env.API_KEY,
-      api_secret: process.env.API_SECRET,
-    });
+    const userId = req.user;
+    console.log("user req ",req.body)
+    console.log("USER",userId)
+    const { postId, description } = req.body;
 
-    const result = await cloudinary.v2.uploader.upload(req.file.path);
-
-    const parsedIngredients = ingredients.split(";").map((i) => i.trim());
-
-    const recipe = new Recipe({
-      user: user.id,
-      title,
+    const comment =  await Comment.create({
+      user: userId,
       description,
-      ingredients: parsedIngredients,
-      steps,
-      image: result.secure_url,
-      category: category.split(",").map((c) => c.trim()),
+      post: postId,
     });
 
-    await recipe.save();
-    return res.status(200).json({
-      recipe,
-    });
+    res.status(201).json(comment);
+ 
   } catch (error) {
     console.error(error);
-    // return res.status(500).json({ message: "Internal server error" });
+    return res.status(500).json({ message: "Internal server error" });
   }
 });
 
-//============
+//==============================================
 
-const getAllRecipes = asyncHandler(async (req, res) => {
-  const recipe = await Recipe.find();
-  res.json(recipe);
+const getAllComments = asyncHandler(async (req, res) => {
+  const comment = await Comment.find().populate("post");
+  res.json(comment);
 });
 
 //============
 
-const getRecipeById = asyncHandler(async (req, res) => {
+const getCommentById = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const recipe = await Recipe.findById(id);
-  console.log(id)
-  res.json(recipe);
+  const comment = await Comment.findById(id).populate("post");
+  console.log(id);
+  res.json(comment);
 });
 //============
-
-const updateRecipeFour = asyncHandler(async (req, res) => {
-  const { user, id } = req.body;
-  const useri = await User.findById(user);
-
-  if (!useri) {
-    return res.status(404).json({ message: "User not found" });
-  }
-
-  const { title, description, ingredients, steps } = req.body;
-
-  // Check if there is a new image
-  let imageUrl;
-  if (req.file) {
-    try {
-      cloudinary.v2.config({
-        cloud_name: process.env.CLOUD_NAME,
-        api_key: process.env.API_KEY,
-        api_secret: process.env.API_SECRET,
-      });
-
-      const result = await cloudinary.v2.uploader.upload(req.file.path);
-      imageUrl = result.secure_url;
-    } catch (error) {
-      console.error(error);
-      return res.status(500).json({ message: "Internal server error" });
+const updateComment = asyncHandler(async (req, res, next) => {
+  try {
+    const data = await Comment.findById(req.params.id);
+    console.log(req.params.id);
+    if (!data) {
+      return res.status(404).json({ message: "Data not found" });
     }
+
+    const { status } = req.body;
+
+    if (status !== undefined) {
+      data.status = status;
+    }
+
+    const updatedData = await data.save();
+    res.json(updatedData);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
-
-  // Split the ingredients string into an array
-  const parsedIngredients = ingredients.split(";").map((i) => i.trim());
-
-  // Update the recipe
-  const updates = {
-    title,
-    description,
-    ingredients: parsedIngredients,
-    steps,
-    ...(imageUrl && { image: imageUrl }),
-  };
-
-  const options = { new: true };
-  const recipe = await Recipe.findByIdAndUpdate(id, updates, options);
-
-  if (!recipe) {
-    return res.status(404).json({ message: "Recipe not found" });
-  }
-
-  return res.json({ recipe });
 });
-
 //=============
 
-const deleteRecipe = asyncHandler(async (req, res) => {
+const deleteComment = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const recipe = await Recipe.findByIdAndDelete(id);
+  const comment = await Comment.findByIdAndDelete(id);
   console.log(id);
-  if (recipe) {
+  if (comment) {
     return res.status(200).json({
       message: `${id} had been deleted successfully`,
     });
   } else return res.status(404).json({ message: `${id} not found` });
 });
 
-// // Like recipe
-// const likeRecipe = asyncHandler(async (req, res) => {
-//   const { user, id } = req.body;
-
-//   const recipe = await Recipe.findById(id);
-//   if (!recipe) {
-//     return res.status(404).json({ message: "Recipe not found" });
-//   }
-
-//   // const likeIndex = recipe.likedPosts;
-//   recipe.likedPosts=!(recipe.likedPosts)
-//   await recipe.save();
-
-//     console.log(recipe.likedPosts);
-
-// });
-
-const likeRecipe = asyncHandler(async (req, res) => {
+// ============
+const likeComment = asyncHandler(async (req, res) => {
   const { user, id } = req.body;
 
-  const recipe = await Recipe.findById(id);
-  console.log(id, recipe);
-  if (!recipe) {
-    return res.status(404).json({ message: "Like Recipe not found" });
+  const comment = await Comment.findById(id);
+  console.log(id, comment);
+  if (!comment) {
+    return res.status(404).json({ message: "Like comment not found" });
   }
 
-  // Check if the user has already liked this recipe
-  const index = recipe.likedBy.indexOf(user);
+  // Check if the user has already liked this comment
+  const index = comment.likedBy.indexOf(user);
   const liked = index !== -1;
 
   // Toggle the liked status
   if (liked) {
-    recipe.likedBy.splice(index, 1);
+    comment.likedBy.splice(index, 1);
   } else {
-    recipe.likedBy.push(user);
+    comment.likedBy.push(user);
   }
 
-  // Update the likes count and save the recipe
-  recipe.likesCount = recipe.likedBy.length;
-  await recipe.save();
+  // Update the likes count and save the comment
+  comment.likesCount = comment.likedBy.length;
+  await comment.save();
 
-  // Return the recipe with the new 'liked' property
-  const responseRecipe = recipe.toObject();
-  responseRecipe.liked = !liked;
-  return res.json({ recipe: responseRecipe });
-});
-
-// Get likes data for all recipes
-const getLikesData = asyncHandler(async (req, res) => {
-  // Retrieve likes data for all recipes
-  const likesData = await Like.aggregate([
-    {
-      $group: {
-        _id: "$recipe",
-        likes: { $push: "$user" },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
-
-  // Create a map of recipe IDs to likes data
-  const likesMap = new Map();
-  likesData.forEach((item) => likesMap.set(item._id.toString(), item));
-
-  return res.json(likesMap);
+  // Return the comment with the new 'liked' property
+  const responseComment = comment.toObject();
+  responseComment.liked = !liked;
+  return res.json({ comment: responseComment });
 });
 
 export default {
-  getRecipeById,
-  likeRecipe,
-  getLikesData,
-  postRecipe,
-  getAllRecipes,
-  updateRecipeFour,
-  deleteRecipe,
+  getCommentById,
+  likeComment,
+  postComment,
+  getAllComments,
+  updateComment,
+  deleteComment,
 };

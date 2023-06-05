@@ -18,11 +18,12 @@ import workhrsRouter from './routes/workingHoursRoute.js';
 import researchRouter from './routes/researchRoute.js';
 import announcementRouter from './routes/announcementRoute.js';
 import postRouter from './routes/postRoute.js';
-
+import commentRouter from './routes/commentRoute.js'
 dotenv.config();
 const port = process.env.PORT || 8000;
 connectDB();
 const app = express();
+
 app.use(cors());
 
 //you use these inorder to use the body data
@@ -42,6 +43,8 @@ app.use("/api/workinghours", workhrsRouter);
 app.use("/api/research", researchRouter);
 app.use("/api/announcements", announcementRouter);
 app.use("/api/posts", postRouter);
+app.use("/api/comments", commentRouter);
+
 
 app.use(errorHandler);
 
