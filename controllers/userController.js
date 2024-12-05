@@ -21,7 +21,7 @@ const registerUser = asyncHandler(async (req, res) => {
     isAdmin,
     file_number,
     phone_number,
-    status,
+    isActive,
     description,
     title,
     type,
@@ -49,7 +49,7 @@ const registerUser = asyncHandler(async (req, res) => {
     isAdmin: isAdmin || false,
     phone_number,
     file_number,
-    status: status || true,
+    isActive: isActive || true,
     type,
     description,
     title,
@@ -69,7 +69,7 @@ const registerUser = asyncHandler(async (req, res) => {
       isAdmin: newUser.isAdmin,
       phone_number: newUser.phone_number,
       file_number: newUser.file_number,
-      status: newUser.status,
+      isActive: newUser.isActive,
       description: newUser.description,
       image: newUser.image && newUser.image || null,
       title: newUser.title,
@@ -114,11 +114,12 @@ const registerUser = asyncHandler(async (req, res) => {
 const getUsers = async (req, res) => {
   try{
     const all_users = await user.find();
-
+    const totalUsers = all_users.length; 
   res.json({
-    message: "All users",
+    message: `All users (${totalUsers})`,
     status: 200,
     data: all_users,
+    totalUsers,
   });
 }
 catch (err) {
@@ -203,7 +204,7 @@ const deleteUser = asyncHandler(async (req, res) => {
 //EDIT USER
 const editUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, email, password, phone_number, status, description, title } = req.body;
+  const { name, email, password, phone_number, isActive, description, title } = req.body;
 
   try {
     let image;
@@ -230,7 +231,7 @@ const editUser = asyncHandler(async (req, res) => {
     userToUpdate.name = name || userToUpdate.name;
     userToUpdate.email = email || userToUpdate.email;
     userToUpdate.phone_number = phone_number || userToUpdate.phone_number;
-    userToUpdate.status = status !== undefined ? status : userToUpdate.status;
+    userToUpdate.isActive = isActive !== undefined ? isActive : userToUpdate.isActive;
     userToUpdate.description = description || userToUpdate.description;
     userToUpdate.title = title || userToUpdate.title;
 

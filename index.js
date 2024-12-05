@@ -4,8 +4,14 @@ import dotenv from "dotenv";
 import cors from "cors";
 import errorHandler from "./middlewares/errorMiddleware.js";
 import connectDB from "./config/db.js";
+import morgan from "morgan";
+
+import logRequests from "./middlewares/logRequests.js";
+
+
 
 //import routes
+
 import contactRouter from './routes/contactRoute.js';
 import userRouter from './routes/userRoute.js';
 import aboutusRouter from './routes/aboutusRoute.js';
@@ -18,13 +24,16 @@ import workhrsRouter from './routes/workingHoursRoute.js';
 import researchRouter from './routes/researchRoute.js';
 import announcementRouter from './routes/announcementRoute.js';
 import postRouter from './routes/postRoute.js';
-import commentRouter from './routes/commentRoute.js'
+import commentRouter from './routes/commentRoute.js';
+import checkFileNumberRoute from "./routes/checkFileNumberRoute.js"
 dotenv.config();
 const port = process.env.PORT || 8000;
 connectDB();
 const app = express();
 
 app.use(cors());
+app.use(morgan("dev")); // Logs incoming requests
+app.use(logRequests); // Apply logging middleware here
 
 //you use these inorder to use the body data
 app.use(express.json());
@@ -44,6 +53,8 @@ app.use("/api/research", researchRouter);
 app.use("/api/announcements", announcementRouter);
 app.use("/api/posts", postRouter);
 app.use("/api/comments", commentRouter);
+app.use('/api/user/check-file-number', checkFileNumberRoute);
+
 
 
 app.use(errorHandler);

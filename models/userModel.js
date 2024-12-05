@@ -34,7 +34,7 @@ const userSchema = new Schema(
       default: "false",
       
     },
-    status: {
+    isActive: {
       type: Boolean,
       default: 1,
     },

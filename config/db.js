@@ -10,10 +10,15 @@ const connectDB = async () => {
       api_key: process.env.API_KEY,
       api_secret: process.env.API_SECRET,
     });
-    const conn = await mongoose.connect(process.env.MONGO_URI);
+    console.log("✅ Cloudinary configured successfully".green);
+
+    const conn = await mongoose.connect(process.env.MONGO_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+    });
     console.log(`MongoDB connected: ${conn.connection.host}`.cyan.underline);
   } catch (error) {
-    console.log(error);
+    console.error(`❌ Error connecting to the database: ${error.message}`.red.bold);
     process.exit(1);
   }
 };
