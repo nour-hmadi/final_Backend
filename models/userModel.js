@@ -3,12 +3,16 @@ const { Schema } = mongoose;
 const userSchema = new Schema(
   {
     
-    name: {
+    first_name: {
       type: String,
-      required: [true, "Please add a name"],
+      required: [true, "Please add your first name"],
     },
-    type:{
+    last_name: {
       type: String,
+      required: [true, "Please add your last name"],
+    },
+    isTeacher:{
+      type: Boolean,
       required: [true, "please specify if you're a teacher or a student"],
     },
     email: {

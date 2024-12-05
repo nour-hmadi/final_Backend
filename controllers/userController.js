@@ -15,7 +15,8 @@ cloudinary.config({
 const registerUser = asyncHandler(async (req, res) => {
 
     const {
-    name,
+    first_name,
+    last_name,
     email,
     password,
     isAdmin,
@@ -24,7 +25,7 @@ const registerUser = asyncHandler(async (req, res) => {
     isActive,
     description,
     title,
-    type,
+    isTeacher,
   } = req.body;
   
   let image = req.file.path
@@ -44,13 +45,14 @@ const registerUser = asyncHandler(async (req, res) => {
   const hashedPassword = await bcrypt.hash(password, salt)
 
   const newUser = await user.create({
-    name,
+    first_name,
+    last_name,
     email,
     isAdmin: isAdmin || false,
     phone_number,
     file_number,
     isActive: isActive || true,
-    type,
+    isTeacher: isTeacher || true,
     description,
     title,
     password: hashedPassword,
@@ -64,7 +66,8 @@ const registerUser = asyncHandler(async (req, res) => {
   if (newUser) {
     res.status(201).json({
       _id: newUser.id,
-      name: newUser.name,
+      first_name: newUser.first_name,
+      last_name:newUser.last_name,
       email: newUser.email,
       isAdmin: newUser.isAdmin,
       phone_number: newUser.phone_number,
@@ -73,17 +76,21 @@ const registerUser = asyncHandler(async (req, res) => {
       description: newUser.description,
       image: newUser.image && newUser.image || null,
       title: newUser.title,
-      type: newUser.type,
+      isTeacher: newUser.isTeacher,
       token: generateToken(user._id),
     });
   } else {
-    if (!name) {
+    if (!first_name) {
       res.status(400);
-      throw new Error("Please add your name");
+      throw new Error("Please add your first name");
     }
-    if (!type) {
+    if (!last_name) {
       res.status(400);
-      throw new Error("Are you a Teacher or a Student!!");
+      throw new Error("Please add your last name");
+    }
+    if (!isTeacher) {
+      res.status(400);
+      throw new Error("Teacher or Student");
     }
   
     if (!email) {
@@ -139,7 +146,8 @@ const loginUser = asyncHandler(async (req, res) => {
     const token = jwt.sign({user_id : loginUser._id , email: loginUser.email, name: loginUser.name}, process.env.JWT_SECRET)
     res.json({
       _id: loginUser.id,
-      name: loginUser.name,
+      first_name: loginUser.first_name,
+      last_name: loginUser.last_name,
       email: loginUser.email,
       isAdmin: loginUser.isAdmin,
       token: token,
@@ -204,7 +212,7 @@ const deleteUser = asyncHandler(async (req, res) => {
 //EDIT USER
 const editUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { name, email, password, phone_number, isActive, description, title } = req.body;
+  const { first_name, last_name, email, password, phone_number, isActive, description, title } = req.body;
 
   try {
     let image;
@@ -228,7 +236,9 @@ const editUser = asyncHandler(async (req, res) => {
           url: uploadedImage.secure_url,
         }
       : userToUpdate.image;
-    userToUpdate.name = name || userToUpdate.name;
+    userToUpdate.first_name = first_name || userToUpdate.first_name;
+    userToUpdate.last_name = last_name || userToUpdate.last_name;
+
     userToUpdate.email = email || userToUpdate.email;
     userToUpdate.phone_number = phone_number || userToUpdate.phone_number;
     userToUpdate.isActive = isActive !== undefined ? isActive : userToUpdate.isActive;
