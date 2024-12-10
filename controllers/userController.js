@@ -143,12 +143,13 @@ const loginUser = asyncHandler(async (req, res) => {
   const loginUser = await user.findOne({ email });
 
   if (loginUser && (await bcrypt.compare(password, loginUser.password))) {
-    const token = jwt.sign({user_id : loginUser._id , email: loginUser.email, name: loginUser.name}, process.env.JWT_SECRET)
+    const token = jwt.sign({user_id : loginUser._id , email: loginUser.email, name: loginUser.name, image: loginUser.image.url}, process.env.JWT_SECRET)
     res.json({
       _id: loginUser.id,
       first_name: loginUser.first_name,
       last_name: loginUser.last_name,
       email: loginUser.email,
+      image: loginUser.image.url,
       isAdmin: loginUser.isAdmin,
       token: token,
     });
@@ -228,6 +229,8 @@ const editUser = asyncHandler(async (req, res) => {
     if (!userToUpdate) {
       res.status(404);
       throw new Error("User not found");
+      return res.status(404).json({ message: "User not found" });
+
     }
 
     userToUpdate.image = uploadedImage
@@ -258,6 +261,8 @@ const editUser = asyncHandler(async (req, res) => {
       data: updatedUser,
     });
   } catch (error) {
+    console.error("Error updating user:", error.message);
+
     res.status(400).json({ message: error.message, status: 400 });
   }
 });

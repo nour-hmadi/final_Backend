@@ -39,6 +39,12 @@ app.use(logRequests); // Apply logging middleware here
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+//prevent caching
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store'); // This prevents caching
+    next();
+  });
+  
 //Routes
 app.use("/api/contact", contactRouter);
 app.use("/api/user", userRouter);
