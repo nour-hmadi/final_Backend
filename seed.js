@@ -54,6 +54,11 @@ const RESEARCH = [
   { title: "Mathematical models of epidemics", image: picture("sir-epidemic"),
     description: "Using the SIR model to estimate how fast an infection spreads, and how vaccination flattens the curve." },
 ];
+const GALLERY = [   // photos served by the frontend from public/images/gallery
+  "The Faculty of Sciences, Hadath campus", "The path through the campus woods", "Reflections after the rain",
+  "Evening sky over the faculty buildings", "Notice boards in the corridor", "The covered walkway at night",
+  "The tower at sunset",
+].map((title, i) => ({ title, section: "campus", image: { public_id: "demo-gallery", url: `/images/gallery/campus-${i + 1}.jpg` } }));
 const HEAD = {
   name: "Prof. Nadim Saliba",
   email: "head.mathdep@example.com",
@@ -72,6 +77,7 @@ const users = db.collection("users");
 const news = db.collection("Announcement");
 const research = db.collection("Research");
 const head = db.collection("headDepartment");
+const gallery = db.collection(mongoose.pluralize()("gallery"));   // the same name Mongoose gives the Gallery model
 
 const demoEmails = TEACHERS.map(([first, last]) => `${first}.${last}@example.com`.toLowerCase());
 const testTeachers = await users
@@ -79,12 +85,14 @@ const testTeachers = await users
 const oldNews = await news.find().sort({ createdAt: 1 }).toArray();
 const oldResearch = await research.find().sort({ createdAt: 1 }).toArray();
 const oldHead = await head.find().sort({ createdAt: 1 }).toArray();
+const oldGallery = await gallery.find().sort({ createdAt: 1 }).toArray();
 
 console.log(`Teachers to hide from the staff pages: ${testTeachers.length} (${testTeachers.map(name).join(", ")})`);
 console.log(`Demo teachers to add or update: ${TEACHERS.length}`);
 const extra = (old, demo) => old.slice(demo.length);          // test documents beyond the demo set: deleted
 console.log(`News to rewrite: ${Math.min(oldNews.length, NEWS.length)} of ${oldNews.length}, to add: ${Math.max(NEWS.length - oldNews.length, 0)}, to delete: ${extra(oldNews, NEWS).length}`);
 console.log(`Research posts to rewrite: ${Math.min(oldResearch.length, RESEARCH.length)} of ${oldResearch.length}, to delete: ${extra(oldResearch, RESEARCH).length}`);
+console.log(`Gallery pictures to rewrite: ${Math.min(oldGallery.length, GALLERY.length)} of ${oldGallery.length}, to add: ${Math.max(GALLERY.length - oldGallery.length, 0)}, to delete: ${extra(oldGallery, GALLERY).length}`);
 console.log(`Head of department to rewrite: ${oldHead.length ? 1 : 0}, to add: ${oldHead.length ? 0 : 1}, to delete: ${extra(oldHead, [HEAD]).length}`);
 if (!apply) {
   console.log("Dry run: nothing changed. To apply: node seed.js --confirm");
@@ -94,7 +102,7 @@ if (!apply) {
 
 fs.mkdirSync("backups", { recursive: true });
 const backup = `backups/before-seed-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
-fs.writeFileSync(backup, JSON.stringify({ users: testTeachers, announcements: oldNews, research: oldResearch, headDepartment: oldHead }, null, 2));
+fs.writeFileSync(backup, JSON.stringify({ users: testTeachers, announcements: oldNews, research: oldResearch, headDepartment: oldHead, gallery: oldGallery }, null, 2));
 console.log(`Backup saved: ${backup}`);
 
 const hidden = testTeachers.map((user) => user._id);
@@ -125,6 +133,12 @@ for (const [i, item] of RESEARCH.entries()) {   // dated 15 days apart, oldest f
   if (oldResearch[i]) await research.updateOne({ _id: oldResearch[i]._id }, { $set: fields });
 }
 
+for (const [i, item] of GALLERY.entries()) {
+  const fields = { ...item, createdAt: daysAgo(30 - i), updatedAt: new Date() };
+  if (oldGallery[i]) await gallery.updateOne({ _id: oldGallery[i]._id }, { $set: fields });
+  else await gallery.insertOne({ ...fields, __v: 0 });
+}
+
 if (oldHead[0]) await head.updateOne({ _id: oldHead[0]._id }, { $set: { ...HEAD, updatedAt: new Date() } });
 else await head.insertOne({ ...HEAD, createdAt: new Date(), updatedAt: new Date(), __v: 0 });
 
@@ -132,6 +146,7 @@ const ids = (documents) => documents.map((document) => document._id);
 await news.deleteMany({ _id: { $in: ids(extra(oldNews, NEWS)) } });
 await research.deleteMany({ _id: { $in: ids(extra(oldResearch, RESEARCH)) } });
 await head.deleteMany({ _id: { $in: ids(extra(oldHead, [HEAD])) } });
+await gallery.deleteMany({ _id: { $in: ids(extra(oldGallery, GALLERY)) } });
 
 console.log("Done: the site now shows the demo content.");
 await mongoose.disconnect();
