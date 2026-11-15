@@ -118,6 +118,26 @@ const registerUser = asyncHandler(async (req, res) => {
 });
 
 //GET ALL USERS
+// Public: what the Teaching Staff pages show, and nothing else (no emails, phone numbers, file numbers or
+// passwords). Reads both user formats: 2024 (first_name, isTeacher) and 2023 (name, type: "teacher").
+const getTeachers = asyncHandler(async (req, res) => {
+  const teachers = await user
+    .find({ $or: [{ isTeacher: true }, { type: "teacher" }], isActive: { $ne: false }, status: { $ne: false } })
+    .select("first_name last_name name title description image.url")
+    .lean();
+  res.json({
+    status: 200,
+    total: teachers.length,
+    data: teachers.map((teacher) => ({
+      _id: teacher._id,
+      name: teacher.first_name ? `${teacher.first_name} ${teacher.last_name}` : teacher.name,
+      title: teacher.title || "",
+      description: teacher.description || "",
+      image: teacher.image?.url || "",
+    })),
+  });
+});
+
 const getUsers = async (req, res) => {
   try{
     const all_users = await user.find();
@@ -277,4 +297,5 @@ export default {
   deleteUser,
   editUser,
   getUsers,
+  getTeachers,
 };

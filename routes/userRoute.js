@@ -8,6 +8,7 @@ const router = express.Router();
 
 
 router.route('/register').post(upload.single('image'),userController.registerUser);
+router.route('/teachers').get(userController.getTeachers);   // before '/:id', or "teachers" would be read as an id
 router.route('/:id').get(userController.getUserById);
 router.route('/login').post(upload.single('image'),userController.loginUser);
 router.route('/me').get(userController.getMe);
