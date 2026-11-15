@@ -1,8 +1,9 @@
 // Replaces the site's test content with a clean, clearly fictional demo set.
 //
 // Test teachers are hidden from the staff pages (their accounts and logins stay). The test news, research
-// posts and head of department are rewritten in place (research images are kept), and any left over
-// beyond the demo set are deleted. The demo teachers are added once: running it again updates them.
+// posts and head of department are rewritten in place, and any left over beyond the demo set are deleted.
+// Each research post shows a picture drawn by the frontend's scripts/research_images.py, which the site
+// serves at /images/research/. The demo teachers are added once: running it again updates them.
 // Everything it changes or deletes is first saved to backups/ (gitignored: it holds emails and passwords).
 //
 //   node seed.js            dry run: shows what would change, changes nothing
@@ -17,6 +18,7 @@ dotenv.config();
 
 const avatar = (name) =>
   `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=512&background=17304d&color=ffffff&bold=true`;
+const picture = (name) => ({ public_id: "demo-research", url: `/images/research/${name}.png` });
 
 const TEACHERS = [   // first name, last name, title, description: all fictional
   ["Rana", "Khalil", "Professor of Algebra", "Linear and bilinear algebra, and algebraic structures."],
@@ -39,17 +41,17 @@ const NEWS = [
     description: "Teams of three solve ten problems in three hours. Prizes for the top three teams; sign up at the secretariat." },
 ];
 const RESEARCH = [
-  { title: "Graph theory for public transport",
+  { title: "Graph theory for public transport", image: picture("graph-theory-transport"),
     description: "Modelling a city's bus lines as a graph to find the shortest and most robust routes, and the stops whose closure would disrupt the network most." },
-  { title: "Numerical methods for heat diffusion",
+  { title: "Numerical methods for heat diffusion", image: picture("heat-diffusion"),
     description: "Comparing finite-difference schemes for the heat equation: how accuracy, stability and computing time change with the grid size." },
-  { title: "Bayesian statistics with small samples",
+  { title: "Bayesian statistics with small samples", image: picture("bayesian-small-samples"),
     description: "How prior knowledge improves estimates when only a few observations are available, with examples from quality control." },
-  { title: "Linear algebra behind machine learning",
+  { title: "Linear algebra behind machine learning", image: picture("linear-algebra-svd"),
     description: "Why matrix factorisation powers recommendation systems and image compression, explained with the singular value decomposition." },
-  { title: "Prime numbers and online security",
+  { title: "Prime numbers and online security", image: picture("primes-security"),
     description: "How the difficulty of factoring large numbers keeps online payments safe, and what quantum computers could change." },
-  { title: "Mathematical models of epidemics",
+  { title: "Mathematical models of epidemics", image: picture("sir-epidemic"),
     description: "Using the SIR model to estimate how fast an infection spreads, and how vaccination flattens the curve." },
 ];
 const HEAD = {
@@ -118,8 +120,9 @@ for (const [i, item] of NEWS.entries()) {
   else await news.insertOne({ ...fields, __v: 0 });
 }
 
-for (const [i, item] of RESEARCH.entries()) {
-  if (oldResearch[i]) await research.updateOne({ _id: oldResearch[i]._id }, { $set: { ...item, updatedAt: new Date() } });
+for (const [i, item] of RESEARCH.entries()) {   // dated 15 days apart, oldest first: reruns keep the same order
+  const fields = { ...item, createdAt: daysAgo(15 * (RESEARCH.length - i)), updatedAt: new Date() };
+  if (oldResearch[i]) await research.updateOne({ _id: oldResearch[i]._id }, { $set: fields });
 }
 
 if (oldHead[0]) await head.updateOne({ _id: oldHead[0]._id }, { $set: { ...HEAD, updatedAt: new Date() } });
