@@ -1,9 +1,9 @@
 // Replaces the site's test content with a clean, clearly fictional demo set.
 //
-// Nothing is deleted. Test teachers are hidden from the staff pages (their accounts and logins stay),
-// the test news, research posts and head of department are rewritten in place (research images are
-// kept), and the demo teachers are added once: running it again updates them instead of adding copies.
-// Everything it changes is first saved to backups/ (gitignored: it holds emails and password hashes).
+// Test teachers are hidden from the staff pages (their accounts and logins stay). The test news, research
+// posts and head of department are rewritten in place (research images are kept), and any left over
+// beyond the demo set are deleted. The demo teachers are added once: running it again updates them.
+// Everything it changes or deletes is first saved to backups/ (gitignored: it holds emails and passwords).
 //
 //   node seed.js            dry run: shows what would change, changes nothing
 //   node seed.js --confirm  saves the backup, then applies the changes
@@ -47,6 +47,10 @@ const RESEARCH = [
     description: "How prior knowledge improves estimates when only a few observations are available, with examples from quality control." },
   { title: "Linear algebra behind machine learning",
     description: "Why matrix factorisation powers recommendation systems and image compression, explained with the singular value decomposition." },
+  { title: "Prime numbers and online security",
+    description: "How the difficulty of factoring large numbers keeps online payments safe, and what quantum computers could change." },
+  { title: "Mathematical models of epidemics",
+    description: "Using the SIR model to estimate how fast an infection spreads, and how vaccination flattens the curve." },
 ];
 const HEAD = {
   name: "Prof. Nadim Saliba",
@@ -76,9 +80,10 @@ const oldHead = await head.find().sort({ createdAt: 1 }).toArray();
 
 console.log(`Teachers to hide from the staff pages: ${testTeachers.length} (${testTeachers.map(name).join(", ")})`);
 console.log(`Demo teachers to add or update: ${TEACHERS.length}`);
-console.log(`News to rewrite: ${Math.min(oldNews.length, NEWS.length)} of ${oldNews.length}, to add: ${Math.max(NEWS.length - oldNews.length, 0)}`);
-console.log(`Research posts to rewrite: ${Math.min(oldResearch.length, RESEARCH.length)} of ${oldResearch.length}`);
-console.log(`Head of department to rewrite: ${oldHead.length ? 1 : 0}, to add: ${oldHead.length ? 0 : 1}`);
+const extra = (old, demo) => old.slice(demo.length);          // test documents beyond the demo set: deleted
+console.log(`News to rewrite: ${Math.min(oldNews.length, NEWS.length)} of ${oldNews.length}, to add: ${Math.max(NEWS.length - oldNews.length, 0)}, to delete: ${extra(oldNews, NEWS).length}`);
+console.log(`Research posts to rewrite: ${Math.min(oldResearch.length, RESEARCH.length)} of ${oldResearch.length}, to delete: ${extra(oldResearch, RESEARCH).length}`);
+console.log(`Head of department to rewrite: ${oldHead.length ? 1 : 0}, to add: ${oldHead.length ? 0 : 1}, to delete: ${extra(oldHead, [HEAD]).length}`);
 if (!apply) {
   console.log("Dry run: nothing changed. To apply: node seed.js --confirm");
   await mongoose.disconnect();
@@ -119,6 +124,11 @@ for (const [i, item] of RESEARCH.entries()) {
 
 if (oldHead[0]) await head.updateOne({ _id: oldHead[0]._id }, { $set: { ...HEAD, updatedAt: new Date() } });
 else await head.insertOne({ ...HEAD, createdAt: new Date(), updatedAt: new Date(), __v: 0 });
+
+const ids = (documents) => documents.map((document) => document._id);
+await news.deleteMany({ _id: { $in: ids(extra(oldNews, NEWS)) } });
+await research.deleteMany({ _id: { $in: ids(extra(oldResearch, RESEARCH)) } });
+await head.deleteMany({ _id: { $in: ids(extra(oldHead, [HEAD])) } });
 
 console.log("Done: the site now shows the demo content.");
 await mongoose.disconnect();
