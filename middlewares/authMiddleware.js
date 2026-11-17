@@ -25,6 +25,7 @@ const protect = asyncHandler(async (req, res, next) => {
 
       // Get user from the token
       req.user = await User.findById(decoded.user_id).select("-password");
+      if (!req.user || req.user.isActive === false) throw new Error("Account deleted or deactivated");
       console.log("req.uer ",req.user)
 
       next();

@@ -162,7 +162,11 @@ const loginUser = asyncHandler(async (req, res) => {
   const loginUser = await user.findOne({ email });
 
   if (loginUser && (await bcrypt.compare(password, loginUser.password))) {
-    const token = jwt.sign({user_id : loginUser._id , email: loginUser.email, name: loginUser.name, image: loginUser.image.url}, process.env.JWT_SECRET)
+    if (loginUser.isActive === false) {
+      res.status(403);
+      throw new Error("Your account is deactivated. Please contact the secretariat.");
+    }
+    const token = jwt.sign({user_id : loginUser._id , email: loginUser.email, name: loginUser.name, image: loginUser.image.url}, process.env.JWT_SECRET, {expiresIn: "7d" })
     res.json({
       _id: loginUser.id,
       first_name: loginUser.first_name,
