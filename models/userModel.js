@@ -61,7 +61,15 @@ const userSchema = new Schema(
 
   },
   {
+    
     timestamps: true,
+    // Never send the password hash in any API response
+    toJSON: {
+      transform: (doc, ret) => {
+        delete ret.password;
+        return ret;
+      },
+    },
   }
 );
 
