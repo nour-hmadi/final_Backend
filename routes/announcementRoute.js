@@ -1,11 +1,13 @@
 import express from 'express';
+import protect from "../middlewares/authMiddleware.js";
+import admin from "../middlewares/adminMiddleware.js";
 const router = express.Router();
 import controller from '../controllers/announcementController.js';
 
 router.get('/', controller.getAll); //list all
 router.get('/:id', controller.getByID); // list one
-router.post('/', controller.post); //create 
-router.put('/:id', controller.put); //update 
-router.delete('/:id', controller.delete); //delete 
+router.post('/', protect, admin, controller.post); //create 
+router.put('/:id', protect, admin, controller.put); //update 
+router.delete('/:id', protect, admin, controller.delete); //delete 
 
 export default router;
