@@ -1,164 +1,67 @@
 import asyncHandler from "express-async-handler";
 import Post from "../models/postModel.js";
-import User from "../models/userModel.js";
-import cloudinary from "cloudinary";
-//============
 
+// Students' posts. Anyone can read approved posts, a signed-in user can post,
+// and an admin approves or deletes. The author always comes from the login token.
+
+// POST /api/posts (signed in): the new post waits for an admin's approval
 const postPost = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  console.log(id);
-  const user = await User.findById(id);
-  console.log("nour")
-  console.log(user)
-  console.log(user.name)
-  if (!user) {
-    return res.status(404).json({ message: "User not found" });
-  }
-  console.log(user);
-
   const { title, description } = req.body;
-  console.log(req.body);
   if (!title || !description) {
-    return res.status(400).json({ message: "Missing required fields" });
+    res.status(400);
+    throw new Error("Please add a title and a description");
   }
-
-  if (!req.file || req.file.length === 0) {
-    return res.status(400).json({ message: "Image file is missing" });
-  }
-
-  try {
-    cloudinary.v2.config({
-      cloud_name: process.env.CLOUD_NAME,
-      api_key: process.env.API_KEY,
-      api_secret: process.env.API_SECRET,
-    });
-
-    const result = await cloudinary.v2.uploader.upload(req.file.path);
-
-    const post = new Post({
-      user: user.id,
-      name: user.name,
-      title,
-      description,
-      image: result.secure_url,
-    });
-
-    await post.save();
-    return res.status(200).json({
-      post,
-    });
-  } catch (error) {
-    console.error(error);
-    // return res.status(500).json({ message: "Internal server error" });
-  }
+  const author = req.user.first_name ? `${req.user.first_name} ${req.user.last_name}` : req.user.name;
+  const post = await Post.create({
+    user: req.user._id,
+    name: author,
+    title,
+    description,
+    image: req.user.image?.url,   // the author's photo, shown beside the post
+    status: false,
+  });
+  res.status(201).json(post);
 });
 
-//============
-
+// GET /api/posts (public): approved posts only, newest first
 const getAllPosts = asyncHandler(async (req, res) => {
-  const post = await Post.find();
-  res.json(post);
+  res.json(await Post.find({ status: true }).sort({ createdAt: -1 }));
 });
 
-//============
+// GET /api/posts/pending (admin): posts waiting for approval
+const getPendingPosts = asyncHandler(async (req, res) => {
+  res.json(await Post.find({ status: false }).sort({ createdAt: -1 }));
+});
 
+// GET /api/posts/:id (public): one approved post
 const getPostById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const post = await Post.findById(id);
-  console.log(id);
+  const post = await Post.findOne({ _id: req.params.id, status: true });
+  if (!post) {
+    res.status(404);
+    throw new Error("Post not found");
+  }
   res.json(post);
 });
-//============
-const updatePost = asyncHandler( async (req, res, next) =>  {
-  try {
-    const data = await Post.findById(req.params.id);
-    console.log(req.params.id);
-    if (!data) {
-      return res.status(404).json({ message: "Data not found" });
-    }
 
-    const { status } = req.body;
-
-    if (status !== undefined) {
-      data.status = status;
-    }
-
-    const updatedData = await data.save();
-    res.json(updatedData);
-  } catch (error) {
-    res.status(400).json({ message: error.message });
-  }
-});
-//=============
-
-const deletePost = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  const post = await Post.findByIdAndDelete(id);
-  console.log(id);
-  if (post) {
-    return res.status(200).json({
-      message: `${id} had been deleted successfully`,
-    });
-  } else return res.status(404).json({ message: `${id} not found` });
-});
-
-// ============
-const likePost = asyncHandler(async (req, res) => {
-  const { user, id } = req.body;
-
-  const post = await Post.findById(id);
-  console.log(id, post);
+// PUT /api/posts/:id (admin): approve (status true) or hide (status false)
+const updatePost = asyncHandler(async (req, res) => {
+  const post = await Post.findById(req.params.id);
   if (!post) {
-    return res.status(404).json({ message: "Like Post not found" });
+    res.status(404);
+    throw new Error("Post not found");
   }
-
-  // Check if the user has already liked this post
-  const index = post.likedBy.indexOf(user);
-  const liked = index !== -1;
-
-  // Toggle the liked status
-  if (liked) {
-    post.likedBy.splice(index, 1);
-  } else {
-    post.likedBy.push(user);
-  }
-
-  // Update the likes count and save the post
-  post.likesCount = post.likedBy.length;
-  await post.save();
-
-  // Return the post with the new 'liked' property
-  const responsePost = post.toObject();
-  responsePost.liked = !liked;
-  return res.json({ post: responsePost });
+  if (req.body.status !== undefined) post.status = req.body.status;
+  res.json(await post.save());
 });
 
-// Get likes data for all posts
-const getLikesData = asyncHandler(async (req, res) => {
-  // Retrieve likes data for all posts
-  const likesData = await Like.aggregate([
-    {
-      $group: {
-        _id: "$post",
-        likes: { $push: "$user" },
-        count: { $sum: 1 },
-      },
-    },
-  ]);
-
-  // Create a map of post IDs to likes data
-  const likesMap = new Map();
-  likesData.forEach((item) => likesMap.set(item._id.toString(), item));
-
-  return res.json(likesMap);
+// DELETE /api/posts/:id (admin)
+const deletePost = asyncHandler(async (req, res) => {
+  const post = await Post.findByIdAndDelete(req.params.id);
+  if (!post) {
+    res.status(404);
+    throw new Error("Post not found");
+  }
+  res.json({ message: "Post deleted" });
 });
 
-export default {
-  getPostById,
-  likePost,
-  getLikesData,
-  postPost,
-  getAllPosts,
-  updatePost,
-  deletePost,
-};
+export default { postPost, getAllPosts, getPendingPosts, getPostById, updatePost, deletePost };
