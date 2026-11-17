@@ -31,6 +31,5 @@ const commentSchema = new mongoose.Schema(
 );
 
 const Comment = mongoose.model("Comments", commentSchema);
-Comment.find().populate({ path: "postID", select: "id" });
 
 export default Comment;
