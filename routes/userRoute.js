@@ -1,20 +1,23 @@
-import  express  from "express";
+import express from "express";
 import userController from "../controllers/userController.js";
-import  protect from "../middlewares/authMiddleware.js";
-import upload from '../middlewares/upload.middleware.js';
+import protect from "../middlewares/authMiddleware.js";
+import admin from "../middlewares/adminMiddleware.js";
+import upload from "../middlewares/upload.middleware.js";
 
 const router = express.Router();
 
+// Public
+router.route("/register").post(upload.single("image"), userController.registerUser);
+router.route("/login").post(userController.loginUser);
+router.route("/teachers").get(userController.getTeachers);
 
+// Signed-in users (must come before "/:id", or "me" is read as an id)
+router.route("/me").get(protect, userController.getMe);
 
-router.route('/register').post(upload.single('image'),userController.registerUser);
-router.route('/teachers').get(userController.getTeachers);   // before '/:id', or "teachers" would be read as an id
-router.route('/:id').get(userController.getUserById);
-router.route('/login').post(upload.single('image'),userController.loginUser);
-router.route('/me').get(userController.getMe);
-router.route('/').get(userController.getUsers);
-router.route('/edit/:id').put(userController.editUser);
-router.route('/:id').delete(userController.deleteUser);
-
+// Admins only
+router.route("/").get(protect, admin, userController.getUsers);
+router.route("/edit/:id").put(protect, admin, upload.single("image"), userController.editUser);
+router.route("/:id").get(protect, admin, userController.getUserById);
+router.route("/:id").delete(protect, admin, userController.deleteUser);
 
 export default router;
