@@ -8,6 +8,7 @@ const VERBS = { POST: "create", PUT: "update", DELETE: "delete" };
 // "/api/announcements/123" with PUT -> "announcements.update"
 export const actionOf = (method, url) => {
   const [, section, second, third] = url.split("?")[0].split("/").filter(Boolean);
+  if (section === "content") return `content.${second}.${VERBS[method]}`;   // e.g. content.course.update
   if (section === "user") {
     if (second === "staff") return "user.create-teacher";
     if (third === "admin") return "user.role";

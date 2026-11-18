@@ -11,6 +11,7 @@ import morgan from "morgan";
 import logRequests from "./middlewares/logRequests.js";
 import trackActivity from "./middlewares/activityMiddleware.js";
 import activityRouter from "./routes/activityRoute.js";
+import contentRouter from "./routes/contentRoute.js";
 
 
 
@@ -82,6 +83,7 @@ app.use("/api/announcements", announcementRouter);
 app.use("/api/posts", postRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/activity", activityRouter);
+app.use("/api/content", contentRouter);
 app.use('/api/user/check-file-number', checkFileNumberRoute);
 
 
