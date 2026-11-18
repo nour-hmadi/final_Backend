@@ -80,6 +80,10 @@ catch (err) {
 const loginUser = asyncHandler(async (req, res) => {
   const { email, password } = req.body;
 
+  if (typeof email !== "string" || typeof password !== "string") {   // text only, never an object
+    res.status(400);
+    throw new Error("Invalid Email Data");
+  }
   const loginUser = await user.findOne({ email });
 
   if (loginUser && (await bcrypt.compare(password, loginUser.password))) {

@@ -9,6 +9,7 @@ import connectDB from "./config/db.js";
 import morgan from "morgan";
 
 import trackActivity from "./middlewares/activityMiddleware.js";
+import sanitize from "./middlewares/sanitizeMiddleware.js";
 import activityRouter from "./routes/activityRoute.js";
 import contentRouter from "./routes/contentRoute.js";
 import { messageRouter, subscriberRouter } from "./routes/messageRoute.js";
@@ -25,7 +26,6 @@ import researchRouter from './routes/researchRoute.js';
 import announcementRouter from './routes/announcementRoute.js';
 import postRouter from './routes/postRoute.js';
 import commentRouter from './routes/commentRoute.js';
-import checkFileNumberRoute from "./routes/checkFileNumberRoute.js"
 dotenv.config();
 const port = process.env.PORT || 8000;
 connectDB();
@@ -54,6 +54,7 @@ app.use(morgan("dev")); // Logs incoming requests
 //you use these inorder to use the body data
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(sanitize);   // no MongoDB commands hidden in the data people send (see middlewares/sanitizeMiddleware.js)
 app.use(trackActivity);   // remembers each change an admin makes (see middlewares/activityMiddleware.js)
 
 //prevent caching
@@ -75,7 +76,6 @@ app.use("/api/activity", activityRouter);
 app.use("/api/content", contentRouter);
 app.use("/api/messages", messageRouter);
 app.use("/api/subscribers", subscriberRouter);
-app.use('/api/user/check-file-number', checkFileNumberRoute);
 
 
 
