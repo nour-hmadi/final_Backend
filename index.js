@@ -36,7 +36,9 @@ const app = express();
 app.set("trust proxy", 1);   // Render sits behind a proxy: use each visitor's real address
 
 // Browsers may call the API only from the live site and from your laptop
-const allowedOrigins = ["https://mathdep-portal.netlify.app", "http://localhost:3000"];
+const allowedOrigins = ["https://mathdep-portal.netlify.app"];
+if (process.env.NODE_ENV !== "production") allowedOrigins.push(/^http:\/\/localhost:\d+$/);   // your laptop, any port
+if (process.env.NODE_ENV !== "production") allowedOrigins.push(/^http:\/\/localhost:\d+$/);   // your laptop, any port
 app.use(cors({ origin: allowedOrigins }));
 
 app.use(helmet());   // security headers on every response
