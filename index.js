@@ -2,6 +2,8 @@
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
 import errorHandler from "./middlewares/errorMiddleware.js";
 import connectDB from "./config/db.js";
 import morgan from "morgan";
@@ -31,7 +33,22 @@ const port = process.env.PORT || 8000;
 connectDB();
 const app = express();
 
-app.use(cors());
+app.set("trust proxy", 1);   // Render sits behind a proxy: use each visitor's real address
+
+// Browsers may call the API only from the live site and from your laptop
+const allowedOrigins = ["https://mathdep-portal.netlify.app", "http://localhost:3000"];
+app.use(cors({ origin: allowedOrigins }));
+
+app.use(helmet());   // security headers on every response
+
+// At most 10 sign-in attempts per 15 minutes from one address, against password guessing
+app.use("/api/user/login", rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: "Too many sign-in attempts. Try again in 15 minutes." },
+}));
 app.use(morgan("dev")); // Logs incoming requests
 app.use(logRequests); // Apply logging middleware here
 
