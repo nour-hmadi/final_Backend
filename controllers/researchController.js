@@ -1,144 +1,80 @@
-import ResearchModel from "../models/researchModel.js";
-import { v2 as cloudinary } from "cloudinary";
+import asyncHandler from "express-async-handler";
+import Research from "../models/researchModel.js";
+import { uploadFile, deleteFile, discardUploads } from "../utils/files.js";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+// Research posts: a picture, a text, the authors, and an optional PDF of the full paper.
+// The public sees posts that aren't hidden; the admin sees all of them.
+const FOLDER = "mathdep/research";
+const fileOf = (req, field) => req.files?.[field]?.[0];
+
+// GET /api/research (public)
+const getAll = asyncHandler(async (req, res) => {
+  res.json({ message: "all data", status: 200, data: await Research.find({ hidden: { $ne: true } }).sort({ createdAt: -1 }) });
 });
 
-//create a new ContactUsDetails
-const createData = async (req, res) => {
-  const { title, description,} = req.body;
-  try {
-    let image = req.file.path; //get the path of the image
-    const uploadedImage = await cloudinary.uploader.upload(image); // upload the image to cloudinary
-    const newData = new ResearchModel({
-      image: {
-        public_id: uploadedImage.public_id,
-        url: uploadedImage.secure_url,
-      },
-      title,
-      description,
-    });
-    const savedData = await newData.save();
-    res.status(201).json({
-      message: "new data successfully created",
-      data: savedData,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "failed to add data",
-    });
-  }
-};
+// GET /api/research/all (admin)
+const getAllForAdmin = asyncHandler(async (req, res) => {
+  res.json({ message: "all data", status: 200, data: await Research.find().sort({ createdAt: -1 }) });
+});
 
-//get all data
-const getall = async (req, res) => {
-    try{
-  const allData = await ResearchModel.find();
-  res.json({
-    message: "all data",
-    status: 200,
-    data: allData,
+// GET /api/research/:id (public, unless hidden)
+const getById = asyncHandler(async (req, res) => {
+  const post = await Research.findById(req.params.id);
+  if (!post || post.hidden) {
+    res.status(404);
+    throw new Error("Research post not found");
+  }
+  res.json({ data: post });
+});
+
+// POST /api/research (admin): title, description, authors, a picture, and maybe a PDF
+const create = asyncHandler(async (req, res) => {
+  const { title, description, authors } = req.body;
+  if (!title || !description || !fileOf(req, "image")) {
+    discardUploads(req);
+    res.status(400);
+    throw new Error("Please add a title, a text and a picture");
+  }
+  const post = new Research({ title, description, authors, image: await uploadFile(fileOf(req, "image"), FOLDER) });
+  if (fileOf(req, "pdf")) post.pdf = await uploadFile(fileOf(req, "pdf"), FOLDER);
+  res.status(201).json({ message: "Research post added", data: await post.save() });
+});
+
+// PUT /api/research/:id (admin). Files change only when new ones are sent; removePdf=true removes the PDF.
+const update = asyncHandler(async (req, res) => {
+  const post = await Research.findById(req.params.id);
+  if (!post) {
+    discardUploads(req);
+    res.status(404);
+    throw new Error("Research post not found");
+  }
+  ["title", "description", "authors"].forEach((key) => {
+    if (req.body[key] !== undefined) post[key] = req.body[key];
   });
-}
-catch (err) {
-    return res.status(500).json({
-      data: err
-    })
+  if (req.body.hidden !== undefined) post.hidden = req.body.hidden === true || req.body.hidden === "true";
+  if (fileOf(req, "image")) {
+    const old = post.image?.toObject ? post.image.toObject() : post.image;
+    post.image = await uploadFile(fileOf(req, "image"), FOLDER);
+    deleteFile(old);
   }
-};
-
-//delete a ContactUsDetails
-const deleteData = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedData = await ResearchModel.findByIdAndRemove(id);
-
-    res
-      .status(200)
-      .json({ message: ` data with id = ${id} deleted successfully`,
-    data: deletedData, });
-
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "ERROR",
-    });
+  if (fileOf(req, "pdf") || req.body.removePdf === "true" || req.body.removePdf === true) {
+    const old = post.pdf?.toObject ? post.pdf.toObject() : post.pdf;
+    post.pdf = fileOf(req, "pdf") ? await uploadFile(fileOf(req, "pdf"), FOLDER) : undefined;
+    deleteFile(old);
   }
-};
-// GET /cards/:id - retrieve a specific card by ID
-const getDataById = async (req, res) => {
-  const id = req.params.id;
-  console.log(id);
-  try {
-    const dataId = await ResearchModel.findById(id);
-    if (!dataId)
-      return res.status(404).json({
-        data: `data with this ${id} id no longer exist in the database`,
-      });
+  res.json({ message: "Research post updated", data: await post.save() });
+});
 
-    return res.status(200).json({
-      message: `data of id ${id}`,
-      data: dataId,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: `Failure `,
-    });
+// DELETE /api/research/:id (admin): the post, its picture and its PDF
+const remove = asyncHandler(async (req, res) => {
+  const post = await Research.findByIdAndDelete(req.params.id);
+  if (!post) {
+    res.status(404);
+    throw new Error("Research post not found");
   }
-};
+  deleteFile(post.image);
+  deleteFile(post.pdf);
+  res.json({ message: "Research post deleted" });
+});
 
-//update
-const updateData = async (req, res) => {
-  const { id } = req.params;
-  const { title, description } = req.body;
-
-  try {
-    let image;
-    let uploadedImage;
-
-    if (req.file) {
-      image = req.file.path;
-      uploadedImage = await cloudinary.uploader.upload(image);
-    }
-
-    const editData = {
-      image: uploadedImage
-        ? {
-            public_id: uploadedImage.public_id,
-            url: uploadedImage.secure_url,
-          }
-        : null,
-     title,
-     description,
-     
-    };
-
-    const updatedData = await ResearchModel.findByIdAndUpdate(
-      id,
-      editData,
-      { new: true } // To return the updated document
-    );
-
-    res.json({
-      message: "Data updated successfully",
-      status: 200,
-      data: updatedData,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export default {
-  createData,
-  getall,
-  deleteData,
-  updateData,
-  getDataById,
-};
+export default { getAll, getAllForAdmin, getById, create, update, remove };
