@@ -1,4 +1,4 @@
-// server/index.js
+// The API server: security settings, then one router per part of the site, then the error handler.
 import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
@@ -8,7 +8,6 @@ import errorHandler from "./middlewares/errorMiddleware.js";
 import connectDB from "./config/db.js";
 import morgan from "morgan";
 
-import logRequests from "./middlewares/logRequests.js";
 import trackActivity from "./middlewares/activityMiddleware.js";
 import activityRouter from "./routes/activityRoute.js";
 import contentRouter from "./routes/contentRoute.js";
@@ -18,15 +17,10 @@ import { messageRouter, subscriberRouter } from "./routes/messageRoute.js";
 
 //import routes
 
-import contactRouter from './routes/contactRoute.js';
 import userRouter from './routes/userRoute.js';
-import aboutusRouter from './routes/aboutusRoute.js';
-import coursesyllabusRouter from './routes/courseSyllabusRoute.js';
-import doyouknowRouter from './routes/doYouKnowRoute.js';
 import galleryRouter from './routes/galleryRoute.js';
 import carouselRouter from './routes/carouselRoute.js';
 import headdepartRouter from './routes/headDepartRoute.js';
-import workhrsRouter from './routes/workingHoursRoute.js';
 import researchRouter from './routes/researchRoute.js';
 import announcementRouter from './routes/announcementRoute.js';
 import postRouter from './routes/postRoute.js';
@@ -56,7 +50,6 @@ app.use("/api/user/login", rateLimit({
   message: { success: false, message: "Too many sign-in attempts. Try again in 15 minutes." },
 }));
 app.use(morgan("dev")); // Logs incoming requests
-app.use(logRequests); // Apply logging middleware here
 
 //you use these inorder to use the body data
 app.use(express.json());
@@ -70,15 +63,10 @@ app.use((req, res, next) => {
   });
   
 //Routes
-app.use("/api/contact", contactRouter);
 app.use("/api/user", userRouter);
-app.use("/api/aboutus", aboutusRouter);
-app.use("/api/coursesyllabus", coursesyllabusRouter);
-app.use("/api/doyouknow", doyouknowRouter);
 app.use("/api/gallery", galleryRouter);
 app.use("/api/carousel", carouselRouter);
 app.use("/api/headdepartment", headdepartRouter);
-app.use("/api/workinghours", workhrsRouter);
 app.use("/api/research", researchRouter);
 app.use("/api/announcements", announcementRouter);
 app.use("/api/posts", postRouter);

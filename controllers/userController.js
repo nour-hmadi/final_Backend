@@ -3,118 +3,38 @@ import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import asyncHandler from "express-async-handler";
 import user from "../models/userModel.js";
-import { v2 as cloudinary } from "cloudinary";
+import Post from "../models/postModel.js";
+import Comment from "../models/commentModel.js";
+import { uploadFile, deleteFile, discardUploads } from "../utils/files.js";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+// A picture made from the initials, for accounts created without a photo
+const avatarFor = (name) => ({
+  public_id: "demo-avatar",
+  url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=512&background=17304d&color=ffffff&bold=true`,
 });
 
 
-//REGISTER
+//REGISTER (public): a new student account. Teachers are added by an admin (Add a teacher),
+// so a sign-up is always a student: never a teacher, never an admin. The photo is optional.
 const registerUser = asyncHandler(async (req, res) => {
-
-    const {
-    first_name,
-    last_name,
-    email,
-    password,
-    file_number,
-    phone_number,
-    isActive,
-    description,
-    title,
-    isTeacher,
-  } = req.body;
-  
-  let image = req.file.path
- console.log(image)
-  const uploadedImage = await cloudinary.uploader.upload(image); // upload the image to cloudinary
-  
-  const userExists = await user.findOne(
-    { email } || { file_number } || { phone_number }
-  );
-
-  if (userExists) {
+  const { first_name, last_name, email, password, file_number, phone_number } = req.body;
+  const refuse = (message) => {
+    discardUploads(req);
     res.status(400);
-    throw new Error("User already exists");
-  }
-
-  const salt = await bcrypt.genSalt(10);
-  const hashedPassword = await bcrypt.hash(password, salt)
-
+    throw new Error(message);
+  };
+  if (!first_name || !last_name || !email || !password || !file_number || !phone_number) refuse("Please fill in every field");
+  if (!/^\d+$/.test(String(file_number))) refuse("The file number must contain digits only");
+  if (String(password).length < 8) refuse("The password must have at least 8 characters");
+  if (await user.exists({ $or: [{ email }, { file_number }] })) refuse("An account with this email or file number already exists");
   const newUser = await user.create({
-    first_name,
-    last_name,
-    email,
-    isAdmin: false,
-    phone_number,
-    file_number,
-    isActive: isActive || true,
-    isTeacher: isTeacher || true,
-    description,
-    title,
-    password: hashedPassword,
-    image: {
-      public_id: uploadedImage.public_id,
-      url: uploadedImage.secure_url
-    },
+    first_name, last_name, email, file_number,
+    phone_number: String(phone_number).replace(/\D/g, ""),
+    password: await bcrypt.hash(password, 10),
+    image: req.file ? await uploadFile(req.file, "mathdep/users") : avatarFor(`${first_name} ${last_name}`),
+    isTeacher: false, isAdmin: false, isActive: true,
   });
- 
-
-  if (newUser) {
-    res.status(201).json({
-      _id: newUser.id,
-      first_name: newUser.first_name,
-      last_name:newUser.last_name,
-      email: newUser.email,
-      isAdmin: newUser.isAdmin,
-      phone_number: newUser.phone_number,
-      file_number: newUser.file_number,
-      isActive: newUser.isActive,
-      description: newUser.description,
-      image: newUser.image && newUser.image || null,
-      title: newUser.title,
-      isTeacher: newUser.isTeacher,
-      token: generateToken(user._id),
-    });
-  } else {
-    if (!first_name) {
-      res.status(400);
-      throw new Error("Please add your first name");
-    }
-    if (!last_name) {
-      res.status(400);
-      throw new Error("Please add your last name");
-    }
-    if (!isTeacher) {
-      res.status(400);
-      throw new Error("Teacher or Student");
-    }
-  
-    if (!email) {
-      res.status(400);
-      throw new Error("Please add your email");
-    }
-  
-    if (!password) {
-      res.status(400);
-      throw new Error("Please add your password");
-    }
-  
-    if (!file_number) {
-      res.status(400);
-      throw new Error("Please add your file number");
-    }
-  
-    if (!phone_number) {
-      res.status(400);
-      throw new Error("Please add your phone number");
-    }
-    res.status(400);
-    throw new Error("Invalid user data");
-  }
+  res.status(201).json({ _id: newUser.id, first_name: newUser.first_name, last_name: newUser.last_name, email: newUser.email, image: newUser.image });
 });
 
 //GET ALL USERS
@@ -186,7 +106,6 @@ const loginUser = asyncHandler(async (req, res) => {
 //GET ME
 const getMe = asyncHandler(async (req, res) => {
   const currentUser = await user.findById(req.user.id);
-  console.log(req.user, 'lol');
   res.json({
     message: "User data retrieved successfully",
     status: 200,
@@ -209,93 +128,59 @@ const getUserById = asyncHandler(async (req, res) => {
   }
 });
 
-const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "30d",
-  });
-};
-
-//DELETE USER
+//DELETE USER (admin): the account, its photo, its posts, and the replies it wrote or received
 const deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (id === String(req.user._id)) {
     res.status(400);
     throw new Error("You can't delete your own account");
   }
-
   const deletedUser = await user.findByIdAndDelete(id);
-
-  if (deletedUser) {
-    res.json({
-      message: "User deleted successfully",
-      status: 200,
-      data: deletedUser,
-    });
-  } else {
+  if (!deletedUser) {
     res.status(404);
     throw new Error("User not found");
   }
+  deleteFile(deletedUser.image);
+  const posts = await Post.find({ user: deletedUser._id }).select("_id");
+  await Comment.deleteMany({ $or: [{ user: deletedUser._id }, { post: { $in: posts.map((post) => post._id) } }] });
+  await Post.deleteMany({ user: deletedUser._id });
+  res.json({ message: "User deleted successfully", status: 200 });
 });
 
 
-//EDIT USER
+//EDIT USER (admin): only the fields sent are changed; a new photo replaces the old one
 const editUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { first_name, last_name, email, password, phone_number, isActive, description, title } = req.body;
   if (id === String(req.user._id) && (isActive === false || isActive === "false")) {
+    discardUploads(req);
     res.status(400);
     throw new Error("You can't deactivate your own account");
   }
-
+  const userToUpdate = await user.findById(id);
+  if (!userToUpdate) {
+    discardUploads(req);
+    res.status(404);
+    throw new Error("User not found");
+  }
+  if (first_name) userToUpdate.first_name = first_name;
+  if (last_name) userToUpdate.last_name = last_name;
+  if (email) userToUpdate.email = email;
+  if (phone_number) userToUpdate.phone_number = phone_number;
+  if (description !== undefined) userToUpdate.description = description;
+  if (title !== undefined) userToUpdate.title = title;
+  if (isActive !== undefined) userToUpdate.isActive = isActive === true || isActive === "true";
+  if (password) userToUpdate.password = await bcrypt.hash(password, 10);
+  if (req.file) {
+    const old = userToUpdate.image?.toObject ? userToUpdate.image.toObject() : userToUpdate.image;
+    userToUpdate.image = await uploadFile(req.file, "mathdep/users");
+    deleteFile(old);
+  }
   try {
-    let image;
-    let uploadedImage;
-
-    if (req.file) {
-      image = req.file.path;
-      uploadedImage = await cloudinary.uploader.upload(image);
-    }
-
-    const userToUpdate = await user.findById(id);
-
-    if (!userToUpdate) {
-      res.status(404);
-      throw new Error("User not found");
-      return res.status(404).json({ message: "User not found" });
-
-    }
-
-    userToUpdate.image = uploadedImage
-      ? {
-          public_id: uploadedImage.public_id,
-          url: uploadedImage.secure_url,
-        }
-      : userToUpdate.image;
-    userToUpdate.first_name = first_name || userToUpdate.first_name;
-    userToUpdate.last_name = last_name || userToUpdate.last_name;
-
-    userToUpdate.email = email || userToUpdate.email;
-    userToUpdate.phone_number = phone_number || userToUpdate.phone_number;
-    userToUpdate.isActive = isActive !== undefined ? isActive : userToUpdate.isActive;
-    userToUpdate.description = description || userToUpdate.description;
-    userToUpdate.title = title || userToUpdate.title;
-
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      userToUpdate.password = await bcrypt.hash(password, salt);
-    }
-
-    const updatedUser = await userToUpdate.save();
-
-    res.json({
-      message: "User updated successfully",
-      status: 200,
-      data: updatedUser,
-    });
+    res.json({ message: "User updated successfully", status: 200, data: await userToUpdate.save() });
   } catch (error) {
-    console.error("Error updating user:", error.message);
-
-    res.status(400).json({ message: error.message, status: 400 });
+    res.status(400);
+    throw new Error(error.message);   // e.g. an older account missing a required field
   }
 });
 
@@ -306,20 +191,16 @@ const editUser = asyncHandler(async (req, res) => {
 const createStaff = asyncHandler(async (req, res) => {
   const { first_name, last_name, email, title, description } = req.body;
   if (!first_name || !last_name || !email) {
+    discardUploads(req);
     res.status(400);
     throw new Error("Please add the first name, last name and email");
   }
   if (await user.exists({ email })) {
+    discardUploads(req);
     res.status(400);
     throw new Error("A user with this email already exists");
   }
-  const name = `${first_name} ${last_name}`;
-  let image = { public_id: "demo-avatar",
-    url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=512&background=17304d&color=ffffff&bold=true` };
-  if (req.file) {
-    const uploaded = await cloudinary.uploader.upload(req.file.path);
-    image = { public_id: uploaded.public_id, url: uploaded.secure_url };
-  }
+  const image = req.file ? await uploadFile(req.file, "mathdep/users") : avatarFor(`${first_name} ${last_name}`);
   let file_number;
   do file_number = crypto.randomInt(100000, 1000000);
   while (await user.exists({ file_number }));

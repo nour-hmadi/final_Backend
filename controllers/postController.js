@@ -1,5 +1,6 @@
 import asyncHandler from "express-async-handler";
 import Post from "../models/postModel.js";
+import Comment from "../models/commentModel.js";
 
 // Students' posts. Anyone can read approved posts, a signed-in user can post,
 // and an admin approves or deletes. The author always comes from the login token.
@@ -61,6 +62,7 @@ const deletePost = asyncHandler(async (req, res) => {
     res.status(404);
     throw new Error("Post not found");
   }
+  await Comment.deleteMany({ post: post._id });   // its replies go with it
   res.json({ message: "Post deleted" });
 });
 
