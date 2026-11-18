@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import asyncHandler from "express-async-handler";
 import user from "../models/userModel.js";
 import { v2 as cloudinary } from "cloudinary";
@@ -292,6 +293,36 @@ const editUser = asyncHandler(async (req, res) => {
 
 
 
+// ADD STAFF (admin): a teacher shown on the Teaching staff page.
+// The account gets a random password, so nobody can sign in with it until an admin resets it.
+const createStaff = asyncHandler(async (req, res) => {
+  const { first_name, last_name, email, title, description } = req.body;
+  if (!first_name || !last_name || !email) {
+    res.status(400);
+    throw new Error("Please add the first name, last name and email");
+  }
+  if (await user.exists({ email })) {
+    res.status(400);
+    throw new Error("A user with this email already exists");
+  }
+  const name = `${first_name} ${last_name}`;
+  let image = { public_id: "demo-avatar",
+    url: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&size=512&background=17304d&color=ffffff&bold=true` };
+  if (req.file) {
+    const uploaded = await cloudinary.uploader.upload(req.file.path);
+    image = { public_id: uploaded.public_id, url: uploaded.secure_url };
+  }
+  let file_number;
+  do file_number = crypto.randomInt(100000, 1000000);
+  while (await user.exists({ file_number }));
+  const teacher = await user.create({
+    first_name, last_name, email, title, description, image,
+    password: await bcrypt.hash(crypto.randomBytes(18).toString("base64url"), 10),
+    isTeacher: true, isAdmin: false, isActive: true, phone_number: 0, file_number,
+  });
+  res.status(201).json({ message: "Teacher added", data: teacher });
+});
+
 export default {
   registerUser,
   loginUser,
@@ -301,4 +332,5 @@ export default {
   editUser,
   getUsers,
   getTeachers,
+  createStaff,
 };

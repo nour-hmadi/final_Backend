@@ -16,6 +16,7 @@ router.route("/me").get(protect, userController.getMe);
 
 // Admins only
 router.route("/").get(protect, admin, userController.getUsers);
+router.route("/staff").post(protect, admin, upload.single("image"), userController.createStaff);
 router.route("/edit/:id").put(protect, admin, upload.single("image"), userController.editUser);
 router.route("/:id").get(protect, admin, userController.getUserById);
 router.route("/:id").delete(protect, admin, userController.deleteUser);
