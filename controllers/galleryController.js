@@ -1,143 +1,77 @@
-import Model from "../models/galleryModel.js";
+import fs from "fs";
+import asyncHandler from "express-async-handler";
 import { v2 as cloudinary } from "cloudinary";
+import Gallery from "../models/galleryModel.js";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+// Gallery photos. The file goes to Cloudinary (folder mathdep/gallery); the database keeps its address.
+// Demo photos (public_id starting with "demo-") are files in the frontend, so Cloudinary is never asked to delete them.
+
+const uploadPhoto = async (file) => {
+  try {
+    const result = await cloudinary.uploader.upload(file.path, { folder: "mathdep/gallery" });
+    return { public_id: result.public_id, url: result.secure_url };
+  } finally {
+    fs.promises.unlink(file.path).catch(() => {});   // the temporary copy in uploads/ is no longer needed
+  }
+};
+
+const deletePhoto = (publicId) => {
+  if (publicId && !publicId.startsWith("demo-")) cloudinary.uploader.destroy(publicId).catch(() => {});
+};
+
+// GET /api/gallery (public): newest first
+const getAll = asyncHandler(async (req, res) => {
+  res.json({ message: "all data", status: 200, data: await Gallery.find().sort({ createdAt: -1 }) });
 });
 
-//create a new ContactUsDetails
-const createData = async (req, res) => {
+// GET /api/gallery/:id (public)
+const getById = asyncHandler(async (req, res) => {
+  const photo = await Gallery.findById(req.params.id);
+  if (!photo) {
+    res.status(404);
+    throw new Error("Photo not found");
+  }
+  res.json({ data: photo });
+});
+
+// POST /api/gallery (admin): a photo file, a title and a section
+const create = asyncHandler(async (req, res) => {
   const { title, section } = req.body;
-  try {
-    let image = req.file.path; //get the path of the image
-    const uploadedImage = await cloudinary.uploader.upload(image); // upload the image to cloudinary
-    const newData = new Model({
-      image: {
-        public_id: uploadedImage.public_id,
-        url: uploadedImage.secure_url,
-      },
-      title,
-      section,
-    });
-    const savedData = await newData.save();
-    res.status(201).json({
-      message: "new data successfully created",
-      data: savedData,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "failed to add data",
-    });
+  if (!req.file || !title) {
+    if (req.file) fs.promises.unlink(req.file.path).catch(() => {});
+    res.status(400);
+    throw new Error("Please add a photo and a title");
   }
-};
+  const photo = await Gallery.create({ title, section: section || "campus", image: await uploadPhoto(req.file) });
+  res.status(201).json({ message: "Photo added", data: photo });
+});
 
-//get all data
-const getall = async (req, res) => {
-    try{
-  const allData = await Model.find();
-  res.json({
-    message: "all data",
-    status: 200,
-    data: allData,
-  });
-}
-catch (err) {
-    return res.status(500).json({
-      data: err
-    })
+// PUT /api/gallery/:id (admin): a new title or section; the photo changes only if a new file is sent
+const update = asyncHandler(async (req, res) => {
+  const photo = await Gallery.findById(req.params.id);
+  if (!photo) {
+    res.status(404);
+    throw new Error("Photo not found");
   }
-};
-
-//delete a ContactUsDetails
-const deleteData = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedData = await Model.findByIdAndRemove(id);
-
-    res
-      .status(200)
-      .json({ message: ` data with id = ${id} deleted successfully`,
-    data: deletedData, });
-
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "ERROR",
-    });
+  if (req.body.title) photo.title = req.body.title;
+  if (req.body.section) photo.section = req.body.section;
+  if (req.file) {
+    const oldId = photo.image?.public_id;
+    photo.image = await uploadPhoto(req.file);
+    deletePhoto(oldId);
   }
-};
-// GET /cards/:id - retrieve a specific card by ID
-const getDataById = async (req, res) => {
-  const id = req.params.d;
-  console.log(id);
-  try {
-    const dataId = await Model.findById(id);
-    if (!dataId)
-      return res.status(404).json({
-        data: `data with this ${id} id no longer exist in the database`,
-      });
+  res.json({ message: "Photo updated", data: await photo.save() });
+});
 
-    return res.status(200).json({
-      message: `data of id ${id}`,
-      data: dataId,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: `Failure `,
-    });
+// DELETE /api/gallery/:id (admin)
+const remove = asyncHandler(async (req, res) => {
+  const photo = await Gallery.findByIdAndDelete(req.params.id);
+  if (!photo) {
+    res.status(404);
+    throw new Error("Photo not found");
   }
-};
+  deletePhoto(photo.image?.public_id);
+  res.json({ message: "Photo deleted" });
+});
 
-//update
-const updateData = async (req, res) => {
-  const { id } = req.params;
-  const { title, section } = req.body;
-
-  try {
-    let image;
-    let uploadedImage;
-
-    if (req.file) {
-      image = req.file.path;
-      uploadedImage = await cloudinary.uploader.upload(image);
-    }
-
-    const editData = {
-      image: uploadedImage
-        ? {
-            public_id: uploadedImage.public_id,
-            url: uploadedImage.secure_url,
-          }
-        : null,
-      title,
-      section,
-    };
-
-    const updatedData = await Model.findByIdAndUpdate(
-      id,
-      editData,
-      { new: true } // To return the updated document
-    );
-
-    res.json({
-      message: "Data updated successfully",
-      status: 200,
-      data: updatedData,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export default {
-  createData,
-  getall,
-  deleteData,
-  updateData,
-  getDataById,
-};
+export default { getAll, getById, create, update, remove };

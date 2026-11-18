@@ -1,18 +1,17 @@
 import express from "express";
 import controller from "../controllers/galleryController.js";
 import upload from "../middlewares/upload.middleware.js";
-import protect from "../middlewares/authMiddleware.js";   // new
-import admin from "../middlewares/adminMiddleware.js";    // new
+import protect from "../middlewares/authMiddleware.js";
+import admin from "../middlewares/adminMiddleware.js";
 
 const router = express.Router();
 
-// Anyone can read
-router.route("/").get(controller.getall);
-router.route("/:d").get(controller.getDataById);
-
-// Only admins can change
-router.route("/").post(protect, admin, upload.single("image"), controller.createData);
-router.route("/:id").put(protect, admin, upload.single("image"), controller.updateData);
-router.route("/:id").delete(protect, admin, controller.deleteData);
+// Anyone can look; only admins can change. protect and admin come before upload,
+// so a request from someone else is refused before any file is saved.
+router.get("/", controller.getAll);
+router.get("/:id", controller.getById);
+router.post("/", protect, admin, upload.single("image"), controller.create);
+router.put("/:id", protect, admin, upload.single("image"), controller.update);
+router.delete("/:id", protect, admin, controller.remove);
 
 export default router;
