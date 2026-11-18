@@ -1,145 +1,56 @@
-import Model from "../models/headDepartModel.js";
-import { v2 as cloudinary } from "cloudinary";
+import asyncHandler from "express-async-handler";
+import HeadDepart from "../models/headDepartModel.js";
+import { uploadFile, deleteFile, discardUploads } from "../utils/files.js";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+// The head of the department shown on the home page: photo, name, email and a short message.
+// The home page shows the first one, so normally there is only one.
+const FOLDER = "mathdep/homepage";
+
+// GET /api/headdepartment (public)
+const getAll = asyncHandler(async (req, res) => {
+  res.json({ message: "all data", status: 200, data: await HeadDepart.find().sort({ createdAt: 1 }) });
 });
 
-//create a new ContactUsDetails
-const createData = async (req, res) => {
-  const { name, description, email } = req.body;
-  try {
-    let image = req.file.path; //get the path of the image
-    const uploadedImage = await cloudinary.uploader.upload(image); // upload the image to cloudinary
-    const newData = new Model({
-      image: {
-        public_id: uploadedImage.public_id,
-        url: uploadedImage.secure_url,
-      },
-      name,
-      description,
-      email,
-    });
-    const savedData = await newData.save();
-    res.status(201).json({
-      message: "new data successfully created",
-      data: savedData,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "failed to add data",
-    });
+// POST /api/headdepartment (admin)
+const create = asyncHandler(async (req, res) => {
+  const { name, email, description } = req.body;
+  if (!req.file || !name || !email || !description) {
+    discardUploads(req);
+    res.status(400);
+    throw new Error("Please add a photo, the name, the email and the message");
   }
-};
+  const head = await HeadDepart.create({ name, email, description, image: await uploadFile(req.file, FOLDER) });
+  res.status(201).json({ message: "Head of department added", data: head });
+});
 
-//get all data
-const getall = async (req, res) => {
-    try{
-  const allData = await Model.find();
-  res.json({
-    message: "all data",
-    status: 200,
-    data: allData,
+// PUT /api/headdepartment/:id (admin): the photo changes only if a new one is sent
+const update = asyncHandler(async (req, res) => {
+  const head = await HeadDepart.findById(req.params.id);
+  if (!head) {
+    discardUploads(req);
+    res.status(404);
+    throw new Error("Head of department not found");
+  }
+  ["name", "email", "description"].forEach((key) => {
+    if (req.body[key]) head[key] = req.body[key];
   });
-}
-catch (err) {
-    return res.status(500).json({
-      data: err
-    })
+  if (req.file) {
+    const old = head.image?.toObject ? head.image.toObject() : head.image;
+    head.image = await uploadFile(req.file, FOLDER);
+    deleteFile(old);
   }
-};
+  res.json({ message: "Head of department updated", data: await head.save() });
+});
 
-//delete a ContactUsDetails
-const deleteData = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedData = await Model.findByIdAndRemove(id);
-
-    res
-      .status(200)
-      .json({ message: ` data with id = ${id} deleted successfully`,
-    data: deletedData, });
-
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "ERROR",
-    });
+// DELETE /api/headdepartment/:id (admin)
+const remove = asyncHandler(async (req, res) => {
+  const head = await HeadDepart.findByIdAndDelete(req.params.id);
+  if (!head) {
+    res.status(404);
+    throw new Error("Head of department not found");
   }
-};
-// GET /cards/:id - retrieve a specific card by ID
-const getDataById = async (req, res) => {
-  const id = req.params.d;
-  console.log(id);
-  try {
-    const dataId = await Model.findById(id);
-    if (!dataId)
-      return res.status(404).json({
-        data: `data with this ${id} id no longer exist in the database`,
-      });
+  deleteFile(head.image);
+  res.json({ message: "Head of department deleted" });
+});
 
-    return res.status(200).json({
-      message: `data of id ${id}`,
-      data: dataId,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: `Failure `,
-    });
-  }
-};
-
-//update
-const updateData = async (req, res) => {
-  const { id } = req.params;
-  const { name, description, email } = req.body;
-
-  try {
-    let image;
-    let uploadedImage;
-
-    if (req.file) {
-      image = req.file.path;
-      uploadedImage = await cloudinary.uploader.upload(image);
-    }
-
-    const editData = {
-      image: uploadedImage
-        ? {
-            public_id: uploadedImage.public_id,
-            url: uploadedImage.secure_url,
-          }
-        : null,
-     name,
-     description,
-     email,
-    };
-
-    const updatedData = await Model.findByIdAndUpdate(
-      id,
-      editData,
-      { new: true } // To return the updated document
-    );
-
-    res.json({
-      message: "Data updated successfully",
-      status: 200,
-      data: updatedData,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export default {
-  createData,
-  getall,
-  deleteData,
-  updateData,
-  getDataById,
-};
+export default { getAll, create, update, remove };

@@ -1,143 +1,51 @@
-import Model from "../models/carouselModel.js";
-import { v2 as cloudinary } from "cloudinary";
+import asyncHandler from "express-async-handler";
+import Carousel from "../models/carouselModel.js";
+import { uploadFile, deleteFile, discardUploads } from "../utils/files.js";
 
-cloudinary.config({
-  cloud_name: process.env.CLOUD_NAME,
-  api_key: process.env.API_KEY,
-  api_secret: process.env.API_SECRET,
+// The pictures at the top of the home page. They take turns, oldest first.
+const FOLDER = "mathdep/homepage";
+
+// GET /api/carousel (public)
+const getAll = asyncHandler(async (req, res) => {
+  res.json({ message: "all data", status: 200, data: await Carousel.find().sort({ createdAt: 1 }) });
 });
 
-//create a new ContactUsDetails
-const createData = async (req, res) => {
-  const {title} = req.body;
-  try {
-    let image = req.file.path; //get the path of the image
-    const uploadedImage = await cloudinary.uploader.upload(image); // upload the image to cloudinary
-    const newData = new Model({
-      image: {
-        public_id: uploadedImage.public_id,
-        url: uploadedImage.secure_url,
-      },
-      title,
-      
-    });
-    const savedData = await newData.save();
-    res.status(201).json({
-      message: "new data successfully created",
-      data: savedData,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "failed to add data",
-    });
+// POST /api/carousel (admin): a picture and an optional title
+const create = asyncHandler(async (req, res) => {
+  if (!req.file) {
+    res.status(400);
+    throw new Error("Please add a picture");
   }
-};
+  const slide = await Carousel.create({ title: req.body.title, image: await uploadFile(req.file, FOLDER) });
+  res.status(201).json({ message: "Picture added", data: slide });
+});
 
-//get all data
-const getall = async (req, res) => {
-    try{
-  const allData = await Model.find();
-  res.json({
-    message: "all data",
-    status: 200,
-    data: allData,
-  });
-}
-catch (err) {
-    return res.status(500).json({
-      data: err
-    })
+// PUT /api/carousel/:id (admin): a new title, and a new picture only if one is sent
+const update = asyncHandler(async (req, res) => {
+  const slide = await Carousel.findById(req.params.id);
+  if (!slide) {
+    discardUploads(req);
+    res.status(404);
+    throw new Error("Picture not found");
   }
-};
-
-//delete a ContactUsDetails
-const deleteData = async (req, res) => {
-  const { id } = req.params;
-  try {
-    const deletedData = await Model.findByIdAndRemove(id);
-
-    res
-      .status(200)
-      .json({ message: ` data with id = ${id} deleted successfully`,
-    data: deletedData, });
-
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: "ERROR",
-    });
+  if (req.body.title !== undefined) slide.title = req.body.title;
+  if (req.file) {
+    const old = slide.image?.toObject ? slide.image.toObject() : slide.image;
+    slide.image = await uploadFile(req.file, FOLDER);
+    deleteFile(old);
   }
-};
-// GET /cards/:id - retrieve a specific card by ID
-const getDataById = async (req, res) => {
-  const id = req.params.d;
-  console.log(id);
-  try {
-    const dataId = await Model.findById(id);
-    if (!dataId)
-      return res.status(404).json({
-        data: `data with this ${id} id no longer exist in the database`,
-      });
+  res.json({ message: "Picture updated", data: await slide.save() });
+});
 
-    return res.status(200).json({
-      message: `data of id ${id}`,
-      data: dataId,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({
-      message: `Failure `,
-    });
+// DELETE /api/carousel/:id (admin)
+const remove = asyncHandler(async (req, res) => {
+  const slide = await Carousel.findByIdAndDelete(req.params.id);
+  if (!slide) {
+    res.status(404);
+    throw new Error("Picture not found");
   }
-};
+  deleteFile(slide.image);
+  res.json({ message: "Picture deleted" });
+});
 
-//update
-const updateData = async (req, res) => {
-  const { id } = req.params;
-  const { title } = req.body;
-
-  try {
-    let image;
-    let uploadedImage;
-
-    if (req.file) {
-      image = req.file.path;
-      uploadedImage = await cloudinary.uploader.upload(image);
-    }
-
-    const editData = {
-      image: uploadedImage
-        ? {
-            public_id: uploadedImage.public_id,
-            url: uploadedImage.secure_url,
-          }
-        : null,
-      title,
-      
-    };
-
-    const updatedData = await Model.findByIdAndUpdate(
-      id,
-      editData,
-      { new: true } // To return the updated document
-    );
-
-    res.json({
-      message: "Data updated successfully",
-      status: 200,
-      data: updatedData,
-    });
-  } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: error.message });
-  }
-};
-
-export default {
-  createData,
-  getall,
-  deleteData,
-  updateData,
-  getDataById,
-};
+export default { getAll, create, update, remove };

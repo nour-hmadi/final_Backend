@@ -1,16 +1,14 @@
-
-import  express  from "express";
+import express from "express";
+import controller from "../controllers/carouselController.js";
+import upload from "../middlewares/upload.middleware.js";
 import protect from "../middlewares/authMiddleware.js";
 import admin from "../middlewares/adminMiddleware.js";
-import controller from "../controllers/carouselController.js";
-import upload from '../middlewares/upload.middleware.js';
 
 const router = express.Router();
 
-router.route('/').get(controller.getall);
-router.route('/').post(protect, admin, upload.single('image'), controller.createData);
-router.route('/:id').delete(protect, admin, controller.deleteData);
-router.route('/:id').put(protect, admin, upload.single('image'),controller.updateData);
-router.route('/:d').get(controller.getDataById);
+router.get("/", controller.getAll);   // public
+router.post("/", protect, admin, upload.single("image"), controller.create);
+router.put("/:id", protect, admin, upload.single("image"), controller.update);
+router.delete("/:id", protect, admin, controller.remove);
 
 export default router;
