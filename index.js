@@ -12,6 +12,7 @@ import logRequests from "./middlewares/logRequests.js";
 import trackActivity from "./middlewares/activityMiddleware.js";
 import activityRouter from "./routes/activityRoute.js";
 import contentRouter from "./routes/contentRoute.js";
+import { messageRouter, subscriberRouter } from "./routes/messageRoute.js";
 
 
 
@@ -84,6 +85,8 @@ app.use("/api/posts", postRouter);
 app.use("/api/comments", commentRouter);
 app.use("/api/activity", activityRouter);
 app.use("/api/content", contentRouter);
+app.use("/api/messages", messageRouter);
+app.use("/api/subscribers", subscriberRouter);
 app.use('/api/user/check-file-number', checkFileNumberRoute);
 
 
