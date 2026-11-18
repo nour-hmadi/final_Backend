@@ -9,6 +9,8 @@ import connectDB from "./config/db.js";
 import morgan from "morgan";
 
 import logRequests from "./middlewares/logRequests.js";
+import trackActivity from "./middlewares/activityMiddleware.js";
+import activityRouter from "./routes/activityRoute.js";
 
 
 
@@ -57,6 +59,7 @@ app.use(logRequests); // Apply logging middleware here
 //you use these inorder to use the body data
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(trackActivity);   // remembers each change an admin makes (see middlewares/activityMiddleware.js)
 
 //prevent caching
 app.use((req, res, next) => {
@@ -78,6 +81,7 @@ app.use("/api/research", researchRouter);
 app.use("/api/announcements", announcementRouter);
 app.use("/api/posts", postRouter);
 app.use("/api/comments", commentRouter);
+app.use("/api/activity", activityRouter);
 app.use('/api/user/check-file-number', checkFileNumberRoute);
 
 
