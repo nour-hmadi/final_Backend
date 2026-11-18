@@ -3,6 +3,7 @@ import userController from "../controllers/userController.js";
 import protect from "../middlewares/authMiddleware.js";
 import admin from "../middlewares/adminMiddleware.js";
 import upload from "../middlewares/upload.middleware.js";
+import keepDemoAccount from "../middlewares/demoMiddleware.js";
 
 const router = express.Router();
 
@@ -17,9 +18,9 @@ router.route("/me").get(protect, userController.getMe);
 // Admins only
 router.route("/").get(protect, admin, userController.getUsers);
 router.route("/staff").post(protect, admin, upload.single("image"), userController.createStaff);
-router.route("/:id/admin").put(protect, admin, userController.setAdmin);
-router.route("/edit/:id").put(protect, admin, upload.single("image"), userController.editUser);
+router.route("/:id/admin").put(protect, admin, keepDemoAccount, userController.setAdmin);
+router.route("/edit/:id").put(protect, admin, keepDemoAccount, upload.single("image"), userController.editUser);
 router.route("/:id").get(protect, admin, userController.getUserById);
-router.route("/:id").delete(protect, admin, userController.deleteUser);
+router.route("/:id").delete(protect, admin, keepDemoAccount, userController.deleteUser);
 
 export default router;
