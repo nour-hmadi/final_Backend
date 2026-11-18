@@ -1,110 +1,87 @@
-import AnnModel from "../models/AnnouncementModel.js";
+import asyncHandler from "express-async-handler";
+import Announcement from "../models/AnnouncementModel.js";
 
-class Controller {
-  //get All
-  async getAll(req, res, next) {
-    try {
-      const allData = await AnnModel.find({});
-      res.json({
-        message: "all data",
-        status: 200,
-        data: allData,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        data: err,
-      });
-    }
+// News and events. The public gets only what belongs on the site today;
+// the admin gets everything, each item with its status (visible, past-due, kept, auto-hidden, hidden).
+const newestFirst = (a, b) => (b.startDate || b.createdAt) - (a.startDate || a.createdAt);
+const FIELDS = ["title", "description", "type", "startDate", "endDate", "visibleUntil", "autoHide", "hidden", "keepAfterDue"];
+
+// Only the fields the admin may set; an empty date ("") clears it
+const pick = (body) => {
+  const fields = {};
+  FIELDS.forEach((key) => {
+    if (body[key] !== undefined) fields[key] = body[key] === "" ? null : body[key];
+  });
+  return fields;
+};
+
+const checkDates = (item, res) => {
+  const fail = (message) => {
+    res.status(400);
+    throw new Error(message);
+  };
+  if (!item.startDate) fail("Please add the date");
+  if (item.endDate && item.endDate < item.startDate) fail("The end date can't be before the start date");
+  if (item.visibleUntil && item.visibleUntil < item.startDate) fail("The due date can't be before the start date");
+};
+
+// GET /api/announcements (public)
+const getAll = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const items = (await Announcement.find()).filter((item) => item.isOnSite(now)).sort(newestFirst);
+  res.json({ message: "all data", status: 200, data: items });
+});
+
+// GET /api/announcements/all (admin)
+const getAllForAdmin = asyncHandler(async (req, res) => {
+  const now = new Date();
+  const items = (await Announcement.find()).sort(newestFirst).map((item) => ({ ...item.toJSON(), status: item.status(now) }));
+  res.json({ message: "all data", status: 200, data: items });
+});
+
+// GET /api/announcements/:id (public, only if it is on the site)
+const getById = asyncHandler(async (req, res) => {
+  const item = await Announcement.findById(req.params.id);
+  if (!item || !item.isOnSite()) {
+    res.status(404);
+    throw new Error("Not found");
   }
+  res.json({ data: item });
+});
 
-  //get course syllabus by id
-  async getByID(req, res, next) {
-    let { id } = req.params;
+// POST /api/announcements (admin)
+const create = asyncHandler(async (req, res) => {
+  const item = new Announcement(pick(req.body));
+  checkDates(item, res);
+  await item.save();
+  res.status(201).json({ message: "data created successfully", newdata: item });
+});
 
-    try {
-      const data = await AnnModel.findById(id);
-
-      if (!data)
-        return res.status(404).json({
-          data: `Info with this ${id} does not exist`,
-        });
-      return res.status(200).json({
-        data: data,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        data: data,
-      });
-    }
+// PUT /api/announcements/:id (admin). A new due date clears "kept", so the new date is watched again.
+const update = asyncHandler(async (req, res) => {
+  const item = await Announcement.findById(req.params.id);
+  if (!item) {
+    res.status(404);
+    throw new Error("Not found");
   }
-
-  // Add new course
-  async post(req, res) {
-    const { title, description, type, day, month } = req.body;
-    try {
-      const newdata = await AnnModel.create({
-        type,
-        description,
-        title,
-        day,
-        month,
-      });
-      res.status(203).json({
-        message: "data created successfully",
-        newdata,
-      });
-    } catch (err) {
-      return res.status(500).json({
-        data: err.message,
-      });
-    }
+  const fields = pick(req.body);
+  const time = (date) => (date ? new Date(date).getTime() : null);
+  if ("visibleUntil" in fields && !("keepAfterDue" in fields) && time(fields.visibleUntil) !== time(item.visibleUntil)) {
+    fields.keepAfterDue = false;
   }
-  //update a course syllabus by _id
-  async put(req, res, next) {
-    try {
-      const data = await AnnModel.findById(req.params.id);
-      console.log(req.params.id);
-      if (!data) {
-        return res.status(404).json({ message: "Data not found" });
-      }
+  item.set(fields);
+  checkDates(item, res);
+  res.json(await item.save());
+});
 
-      const { title, description, type, day, month } = req.body;
-
-      if (description) data.description = description;
-      if (title) data.title = title;
-      if (type) data.type = type;
-      if (month) data.month = month;
-      if (day) data.day = day;
-
-      const updatedData = await data.save();
-      res.json(updatedData);
-    } catch (error) {
-      res.status(400).json({ message: error.message });
-    }
+// DELETE /api/announcements/:id (admin)
+const remove = asyncHandler(async (req, res) => {
+  const item = await Announcement.findByIdAndDelete(req.params.id);
+  if (!item) {
+    res.status(404);
+    throw new Error("Not found");
   }
-  //delete story by id
+  res.json({ message: "Deleted" });
+});
 
-  async delete(req, res, next) {
-    try {
-      let { id } = req.params;
-      const data = await AnnModel.findById(id);
-      if (!data) {
-        return res.status(404).json({
-          message: "not found",
-        });
-      }
-      const result = await AnnModel.findByIdAndRemove(id);
-
-      return res.status(200).json({
-        message: "deleted successfully",
-        data: result,
-      });
-    } catch (error) {
-      res.status(500).json({ message: error.message });
-    }
-  }
-}
-
-const controller = new Controller();
-
-export default controller;
+export default { getAll, getAllForAdmin, getById, create, update, remove };
