@@ -218,6 +218,10 @@ const generateToken = (id) => {
 //DELETE USER
 const deleteUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
+  if (id === String(req.user._id)) {
+    res.status(400);
+    throw new Error("You can't delete your own account");
+  }
 
   const deletedUser = await user.findByIdAndDelete(id);
 
@@ -238,6 +242,10 @@ const deleteUser = asyncHandler(async (req, res) => {
 const editUser = asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { first_name, last_name, email, password, phone_number, isActive, description, title } = req.body;
+  if (id === String(req.user._id) && (isActive === false || isActive === "false")) {
+    res.status(400);
+    throw new Error("You can't deactivate your own account");
+  }
 
   try {
     let image;
@@ -323,6 +331,23 @@ const createStaff = asyncHandler(async (req, res) => {
   res.status(201).json({ message: "Teacher added", data: teacher });
 });
 
+// SET ADMIN (admin): make a user an admin, or take the role away.
+// Nobody can remove their own admin role, so the site always keeps at least one admin.
+const setAdmin = asyncHandler(async (req, res) => {
+  const target = await user.findById(req.params.id);
+  if (!target) {
+    res.status(404);
+    throw new Error("User not found");
+  }
+  const makeAdmin = req.body.isAdmin === true || req.body.isAdmin === "true";
+  if (!makeAdmin && target._id.equals(req.user._id)) {
+    res.status(400);
+    throw new Error("You can't remove your own admin role");
+  }
+  await user.updateOne({ _id: target._id }, { $set: { isAdmin: makeAdmin } });
+  res.json({ message: makeAdmin ? "This user is now an admin" : "The admin role was removed" });
+});
+
 export default {
   registerUser,
   loginUser,
@@ -333,4 +358,5 @@ export default {
   getUsers,
   getTeachers,
   createStaff,
+  setAdmin,
 };
